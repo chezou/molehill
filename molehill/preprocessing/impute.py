@@ -1,4 +1,5 @@
 from builtins import ValueError
+from typing import List, Optional, Any
 
 
 class Imputer:
@@ -18,12 +19,17 @@ class Imputer:
     >>> build_query([numeric_clause, categorical_clause], source)
     """
 
-    def __init__(self, strategy="mean", phase="train", fill_value=None):
+    def __init__(self,
+                 strategy: str = "mean",
+                 phase: str = "train",
+                 fill_value: Optional[Any] = None,
+                 categorical: Optional[bool] = None) -> None:
         self.strategy = strategy
         self.phase = "_{}".format(phase) if phase else ""
-        self.fill_value = '"{}"'.format(fill_value) if type(fill_value) == str else fill_value
+        self.fill_value = "'{}'".format(fill_value) if type(fill_value) == str else fill_value
+        self.categorical = categorical
 
-    def _build_partial_query(self, template, statistics, _columns):
+    def _build_partial_query(self, template: str, statistics: str, _columns: List[str]) -> str:
         __query = "\n, ".join(
             template.format_map(
                 {
@@ -36,12 +42,12 @@ class Imputer:
         )
         return __query
 
-    def transform(self, columns):
+    def transform(self, columns: List[str]) -> str:
         if self.strategy == "mean":
-            statistics = "td.last_results.{column}_mean{phase}"
+            statistics = "${{td.last_results.{column}_mean{phase}}}"
 
         elif self.strategy == "median":
-            statistics = "td.last_results.{column}_median{phase}"
+            statistics = "${{td.last_results.{column}_median{phase}}}"
 
         elif self.strategy == "constant":
             if self.fill_value is None:
@@ -52,6 +58,8 @@ class Imputer:
         else:
             raise ValueError("strategy should be mean, median or constant")
 
-        _template = "coalesce({column}, {statistics}) as {column}"
+        _column_source = "cast({column} as varchar)" if self.categorical else "{column}"
+        _template = "coalesce({column}, {statistics}) as {column_dest}".format_map({
+            "column": _column_source, "column_dest": "{column}", "statistics": statistics})
 
         return self._build_partial_query(_template, statistics, columns)

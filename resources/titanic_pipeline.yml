@@ -1,0 +1,52 @@
+# Same example with https://scikit-learn.org/stable/auto_examples/compose/plot_column_transformer_mixed_types.html
+source: titanic
+dbname: ml_tips
+train_sample_rate: 0.8
+
+query_dir: queries
+
+id_column: "rowid"
+target_column: "survived"
+
+#stratify: True
+
+numerical_columns:
+  - columns:
+      - "age"
+      - "fare"
+    transformer:
+      imputer:
+        strategy: "median" # median, mean, constant
+        phase: "train" # train, test, or `NULL` value
+      normalizer:
+        strategy: "standardize"
+        phase: "train"
+
+categorical_columns:
+  - columns:
+      - "embarked"
+      - "sex"
+      - "pclass"
+    transformer:
+      imputer:
+        strategy: "constant"
+        phase: "train"
+        fill_value: "missing"
+
+# Not implemented yet
+tuner:
+  strategy: "gridsearch" # gridsearch, randomsearch, python
+
+trainer:
+  - name: "train_classifier"
+    features: "features"
+
+predictor:
+  - name: "predict_classifier"
+    target_table: "prediction"
+
+evaluator:
+  metrics:
+    - auc
+    - logloss
+  # target_table: "prediction"
