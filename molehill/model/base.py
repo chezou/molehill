@@ -43,7 +43,7 @@ def base_model(function: str,
       {features}
       , {target}
     """.format_map({"function": function, "features": _features, "target": target}))
-    select_clause += "  , {}\n".format(option) if option else ""
+    select_clause += "  , '{}'\n".format(option) if option else ""
     select_clause += ") as ({})".format(storage_format)
 
     return build_query([select_clause], source_table)
