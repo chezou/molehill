@@ -1,12 +1,12 @@
 import textwrap
-from typing import Optional
+from typing import Optional, Tuple
 from .base import base_model
 
 
 def train_classifier(
         features: str = "features",
         target: str = "target",
-        source_table: str = "train",
+        source_table: str = "${source}",
         option: Optional[str] = None,
         bias: Optional[bool] = None) -> str:
     """Build train_classifier query
@@ -42,7 +42,7 @@ def train_classifier(
 
 def train_regressor(
         features: str = "features",
-        source_table: str = "train",
+        source_table: str = "${source}",
         target: str = "target",
         option: Optional[str] = None,
         bias: Optional[bool] = None) -> str:
@@ -115,13 +115,13 @@ def _build_prediction_query(
 
 
 def predict_classifier(
-        target_table: str = "test",
+        target_table: str = "${target_table}",
         id_column: str = "rowid",
         features: str = "features",
         model_table: str = "model",
         model_weight: str = "weight",
         model_feature: str = "feature",
-        sigmoid: Optional[bool] = True) -> str:
+        sigmoid: Optional[bool] = True) -> Tuple[str, str]:
     """Build a prediction query for train_classifiere
 
     Parameters
@@ -145,25 +145,31 @@ def predict_classifier(
     Returns
     --------
     :obj:`str`
+        Built query string.
+    :obj:`str`
+        Predicted column name. For compatibility with predict_classifier.
     """
 
     if sigmoid:
+        predicted_column = "probability"
         _total_weight = "sigmoid(sum(m1.{} * t1.value)) as probability".format(model_weight)
     else:
+        predicted_column = "total_weight"
         _total_weight = "sum(m1.{} * t1.value) as total_weight".format(model_weight)
 
     return _build_prediction_query(
-        _total_weight, target_table, id_column, features, model_table, model_feature)
+        _total_weight, target_table, id_column, features, model_table, model_feature
+    ), predicted_column
 
 
 def predict_regressor(
-        target_table: str = "${source}_test",
+        target_table: str = "${target_table}",
         id_column: str = "rowid",
         features: str = "features",
         model_table: str = "model",
         model_weight: str = "weight",
         model_feature: str = "feature",
-        predicted_column: str = "target") -> str:
+        predicted_column: str = "target") -> Tuple[str, str]:
     """Build a prediction query for train_regressor
 
     Parameters
@@ -185,9 +191,13 @@ def predict_regressor(
     Returns
     --------
     :obj:`str`
+        Built query string.
+    :obj:`str`
+        Predicted column name. For compatibility with predict_classifier.
     """
 
     _total_weight = "sum(m1.{} * t1.value) as {}".format(model_weight, predicted_column)
 
     return _build_prediction_query(
-        _total_weight, target_table, id_column, features, model_table, model_feature)
+        _total_weight, target_table, id_column, features, model_table, model_feature
+    ), predicted_column

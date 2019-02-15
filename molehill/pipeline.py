@@ -1,3 +1,4 @@
+import sys
 import yaml
 from collections import OrderedDict
 from typing import Optional
@@ -208,8 +209,8 @@ class Pipeline(object):
         vectorize_path = query_dir / "vectorize.sql"
         self.save_query(vectorize_path, vectorize_query)
 
-        train_table = "train"
-        test_table = "test"
+        train_table = config.get("vectorizer", {}).get("train_table", "train")
+        test_table = config.get("vectorizer", {}).get("test_table", "test")
         vectorize_task = od({
             "_parallel": True,
             "+train": od({
@@ -225,47 +226,84 @@ class Pipeline(object):
         })
         workflow["+vectorization"] = vectorize_task
 
+        # Preparation for loading train/predict functions dynamically
+        __import__('molehill.model')
+        mod = sys.modules['molehill.model']
+
         main = od()
-        # TODO: Use config settings
-        train_query = train_classifier(target=target_col, source_table=train_table)
-        self.save_query(query_dir / "train.sql", train_query)
-        model_table = "model"
-        main["+train"] = od({
-                "td>": str(query_dir / "train.sql"),
-                "create_table": model_table
-            })
 
-        # TODO: Use config settings
-        predict_query = predict_classifier("${source}", id_col, model_table=model_table)
-        self.save_query(query_dir / "predict.sql", predict_query)
-        predict_table = "prediction"
-        main["+predict"] = od({
-                "td>": str(query_dir / "predict.sql"),
-                "source": test_table,
-                "create_table": predict_table
-            })
+        train_idx = 0
+        train_tasks = od()
+        for trainer in config.get('trainer', {}):
+            func_name = trainer.pop('name')
+            train_func = getattr(mod, func_name)
+            train_query = train_func(dict(trainer, **{"target": target_col}))
+            _query_path = query_dir / "{}.sql".format(func_name)
+            self.save_query(_query_path, train_query)
+            model_table = "model"
+            train_tasks["+train_{}".format(train_idx)] = od(
+                {
+                    "td>": str(_query_path),
+                    "source": train_table,
+                    "create_table": model_table,
+                })
+            train_idx += 1
 
+        if len(train_tasks) > 1:
+            train_tasks["_parallel"] = True
+
+        main["+train"] = train_tasks
+
+        # Save evaluation query before prediction
         metrics = config['evaluator']['metrics']
-        _eval_target = config['evaluator'].get('target_table')
-
-        evaluate_target = _eval_target if _eval_target else predict_table
         evaluate_query = evaluate(metrics,
-                                  target_column="survived",
+                                  target_column=target_col,
                                   target_table="${actual}",
-                                  prediction_table="${predicted}",
-                                  predicted_column="probability")
+                                  prediction_table="${predicted_table}",
+                                  predicted_column="${predicted_column}")
         self.save_query(query_dir / "evaluate.sql", evaluate_query)
-        main["+evaluate"] = od({
-                "td>": str(query_dir / "evaluate.sql"),
-                "actual": test_table,
-                "predicted": evaluate_target,
-                "store_last_results": True
+
+        pred_idx = 0
+        pred_tasks = od()
+
+        predictors = config.get('predictor', {})
+
+        for predictor in predictors:
+            func_name = predictor.pop('name')
+            pred_func = getattr(mod, func_name)
+            predict_query, predicted_col = pred_func(dict(predictor, **{"id_column": id_col}))
+            _query_path = query_dir / "{}.sql".format(func_name)
+            self.save_query(_query_path, predict_query)
+
+            default_table = "prediction" if len(predictors) == 1 else "prediction_{}".format(pred_idx)
+            predict_table = predictor.get("output_table", default_table)
+            test_table = predictor.get("target_table", test_table)
+
+            acc_template = "{metric}: ${{td.last_results.{metric}}}"
+            acc_str = "\t".join(acc_template.format_map({"metric": metric}) for metric in metrics)
+
+            pred_tasks["+seq_{}".format(pred_idx)] = od({
+                "+exec_predict": od({
+                    "td>": str(_query_path),
+                    "target_table": test_table,
+                    "create_table": predict_table
+                }),
+                "+evaluate": od({
+                    "td>": str(query_dir / "evaluate.sql"),
+                    "actual": test_table,
+                    "predicted_table": predict_table,
+                    "predicted_column": predicted_col,
+                    "store_last_results": True
+                }),
+                "+show_accuracy": {"echo>": acc_str}
             })
 
-        acc_template = "{metric}: ${{td.last_results.{metric}}}"
-        acc_str = "\t".join(acc_template.format_map({"metric": metric}) for metric in metrics)
-        main["+show_accuracy"] = {"echo>": acc_str}
+            pred_idx += 1
 
+        if len(pred_tasks) > 1:
+            pred_tasks["_parallel"] = True
+
+        main["+predict"] = pred_tasks
         workflow["+main"] = main
 
         self.workflow_path = "{}.dig".format(source)
