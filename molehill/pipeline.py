@@ -24,6 +24,7 @@ class Pipeline(object):
         self.combine_stats_path = None
         self.vectorize_target_train = None
         self.vectorize_target_test = None
+        self.workflow_path = None
 
     @staticmethod
     def save_query(file_path: str, query: str) -> None:
@@ -267,4 +268,5 @@ class Pipeline(object):
 
         workflow["+main"] = main
 
-        self.save_query("{}.dig".format(source), yaml.dump(workflow, default_flow_style=False))
+        self.workflow_path = "{}.dig".format(source)
+        self.save_query(self.workflow_path, yaml.dump(workflow, default_flow_style=False))
