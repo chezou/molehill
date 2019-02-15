@@ -237,10 +237,12 @@ class Pipeline(object):
         for trainer in config.get('trainer', {}):
             func_name = trainer.pop('name')
             train_func = getattr(mod, func_name)
-            train_query = train_func(dict(trainer, **{"target": target_col}))
+
+            model_table = trainer.pop('model_table', "model")
+            train_query = train_func(**dict(trainer, **{"target": target_col}))
             _query_path = query_dir / "{}.sql".format(func_name)
             self.save_query(_query_path, train_query)
-            model_table = "model"
+
             train_tasks["+train_{}".format(train_idx)] = od(
                 {
                     "td>": str(_query_path),
@@ -271,13 +273,14 @@ class Pipeline(object):
         for predictor in predictors:
             func_name = predictor.pop('name')
             pred_func = getattr(mod, func_name)
-            predict_query, predicted_col = pred_func(dict(predictor, **{"id_column": id_col}))
-            _query_path = query_dir / "{}.sql".format(func_name)
-            self.save_query(_query_path, predict_query)
 
             default_table = "prediction" if len(predictors) == 1 else "prediction_{}".format(pred_idx)
-            predict_table = predictor.get("output_table", default_table)
-            test_table = predictor.get("target_table", test_table)
+            predict_table = predictor.pop("output_table", default_table)
+            test_table = predictor.pop("target_table", test_table)
+
+            predict_query, predicted_col = pred_func(**dict(predictor, **{"id_column": id_col}))
+            _query_path = query_dir / "{}.sql".format(func_name)
+            self.save_query(_query_path, predict_query)
 
             acc_template = "{metric}: ${{td.last_results.{metric}}}"
             acc_str = "\t".join(acc_template.format_map({"metric": metric}) for metric in metrics)
