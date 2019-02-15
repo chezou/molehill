@@ -17,7 +17,7 @@ numerical_columns:
     transformer:
       imputer:
         strategy: "median" # median, mean, constant
-        phase: "train" # train, test, or null
+        phase: "train" # train, test, or null (whole dataset to get stats)
       normalizer:
         strategy: "standardize"
         phase: "train"
