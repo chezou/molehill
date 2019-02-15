@@ -134,7 +134,8 @@ class Pipeline(object):
         preparation = od()
 
         stratify = config.get("stratify")
-        shuffle_query = shuffle(columns, target_column=target_col, id_column=id_col, stratify=stratify, class_label=target_col)
+        shuffle_query = shuffle(
+            columns, target_column=target_col, id_column=id_col, stratify=stratify, class_label=target_col)
         shuffle_path = query_dir / "shuffle.sql"
         self.save_query(shuffle_path, shuffle_query)
 
