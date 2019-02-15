@@ -7,7 +7,6 @@ from pathlib import Path
 from .preprocessing import shuffle, train_test_split
 from .preprocessing import Imputer, Normalizer
 from .preprocessing import vectorize
-from .model import train_classifier, predict_classifier
 from .evaluation import evaluate
 from .stats import compute_stats, combine_train_test_stats
 from .utils import build_query
@@ -31,8 +30,6 @@ class Pipeline(object):
     @staticmethod
     def save_query(file_path: str, query: str) -> None:
         p = Path(file_path)
-        #if p.exists():
-        #    raise ValueError("File `{}` already exists.".format(file_path))
 
         p.parent.mkdir(parents=True, exist_ok=True)
         with p.open('w', encoding='utf-8') as f:
@@ -77,7 +74,7 @@ class Pipeline(object):
 
         return exec_tasks
 
-    def dump_pipeline(self, config_file: str, overwrite: bool = False) -> str:
+    def dump_pipeline(self, config_file: str, dest_file: str = None, overwrite: bool = False) -> str:
         od = OrderedDict
 
         with open(config_file, "r") as f:
@@ -210,12 +207,17 @@ class Pipeline(object):
 
         workflow["+preparation"] = preparation
 
-        vectorize_query = vectorize("${source}", target_col, categorical_columns, numerical_columns, id_col)
+        vect_conf = config.get("vectorizer", {})
+        train_table = vect_conf.pop("train_table", "train")
+        test_table = vect_conf.pop("test_table", "test")
+
+        vect_default_opt = {"categorical_columns": categorical_columns,
+                            "numerical_columns": numerical_columns,
+                            "id_column": id_col}
+        vectorize_query = vectorize("${source}", target_col, **dict(vect_default_opt, **vect_conf))
         vectorize_path = query_dir / "vectorize.sql"
         self.save_query(vectorize_path, vectorize_query)
 
-        train_table = config.get("vectorizer", {}).get("train_table", "train")
-        test_table = config.get("vectorizer", {}).get("test_table", "test")
         vectorize_task = od({
             "_parallel": True,
             "+train": od({
@@ -243,6 +245,12 @@ class Pipeline(object):
             func_name = trainer.pop('name')
             train_func = getattr(mod, func_name)
 
+            if func_name == 'train_randomforest_classifier':
+                from .model import extract_attrs
+                _opt = trainer.get('option', '')
+                _opt += ' ' + extract_attrs(categorical_columns, numerical_columns)
+                trainer['option'] = _opt
+
             model_table = trainer.pop('model_table', "model")
             train_query = train_func(**dict(trainer, **{"target": target_col}))
             _query_path = query_dir / "{}.sql".format(func_name)
@@ -256,7 +264,7 @@ class Pipeline(object):
                 })
             train_idx += 1
 
-        if len(train_tasks) > 1:
+        if train_idx > 1:
             train_tasks["_parallel"] = True
 
         main["+train"] = train_tasks
@@ -308,14 +316,15 @@ class Pipeline(object):
 
             pred_idx += 1
 
-        if len(pred_tasks) > 1:
+        if pred_idx > 1:
             pred_tasks["_parallel"] = True
 
         main["+predict"] = pred_tasks
         workflow["+main"] = main
 
-        self.workflow_path = "{}.dig".format(source)
-        if not overwrite and Path(self.workflow_path).exists():
+        self.workflow_path = dest_file if dest_file else "{}.dig".format(source)
+
+        if not overwrite and Path(dest_file).exists():
             raise FileExistsError("{} already exists".format(self.workflow_path))
 
         self.save_query(self.workflow_path, yaml.dump(workflow, default_flow_style=False))

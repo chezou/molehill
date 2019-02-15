@@ -12,7 +12,11 @@ def vectorize(
         categorical_columns: Optional[List[str]] = None,
         numerical_columns: Optional[List[str]] = None,
         id_column: Optional[str] = "rowid",
-        features: Optional[str] = "features"):
+        features: Optional[str] = "features",
+        bias: Optional[bool] = None,
+        hashing: Optional[bool] = None,
+        emit_null: Optional[bool] = None,
+        force_value: Optional[bool] = None) -> str:
     """Build vectorization query before training or prediction.
 
     Parameters
@@ -29,9 +33,20 @@ def vectorize(
         Id column name.
     features : :obj:`str`, optional
         Feature column name.
+    bias : bool, optional
+        Add bias for feature.
+    hashing : bool, optional
+        Execute feature hashing.
+        If there is a large number of categorical features, hashing at vectorization phase would be better.
+    emit_null : bool, optional
+        Ensure feature entity size equally with emitting Null or 0.
+    force_value : bool, optional
+        Force to output value as 1 for categorical columns.
+
     Returns
     -------
-
+    :obj:`str`
+       Built query for vectorization.
     """
 
     if categorical_columns is None and numerical_columns is None:
@@ -43,7 +58,13 @@ def vectorize(
     if not numerical_columns:
         numerical_columns = []
 
-    feature_query = _feature_column_query(categorical_columns, numerical_columns, features)
+    feature_query = _feature_column_query(
+        categorical_columns, numerical_columns, emit_null=emit_null, force_value=force_value)
+
+    feature_query = "feature_hashing(\n{}\n)".format(textwrap.indent(feature_query, "  ")) if hashing else feature_query
+    feature_query = "add_bias(\n{}\n)".format(textwrap.indent(feature_query, "  ")) if bias else feature_query
+    feature_query += " as {}".format(features)
+
     query = build_query(
         [id_column, feature_query, target_column],
         source
@@ -52,7 +73,8 @@ def vectorize(
     return query
 
 
-def _build_feature_array(columns: List[str], ctype: str) -> str:
+def _build_feature_array(
+        columns: List[str], ctype: str, emit_null: Optional[bool] = None, force_value: Optional[bool] = None) -> str:
     """ Build feature array for vectorization.
 
     Parameters
@@ -61,6 +83,10 @@ def _build_feature_array(columns: List[str], ctype: str) -> str:
         A list of column names
     ctype : :obj:`str`
         A type of column. "numerical" or "categorical" can be used.
+    emit_null : bool
+        Ensure output null or 0 if a categorical column is null or 0 value.
+    force_value : bool, optional
+        Force to output value as 1 for categorical columns.
 
     Returns
     --------
@@ -75,13 +101,28 @@ def _build_feature_array(columns: List[str], ctype: str) -> str:
 
     _query += "\n, ".join(columns)
 
-    return "{}_features(\n{}\n)".format(FEATURE_FUNC_MAP[ctype], textwrap.indent(_query, "  "))
+    _options = []
+    if emit_null:
+        _options.append('-emit_null')
+    if force_value:
+        _options.append('-force_value')
+
+    _option = ""
+    if len(_options) > 0:
+        _option = ", '{}'".format(' '.join(_options))
+
+    return "{func}_features(\n{query}\n{option})".format_map({
+        "func": FEATURE_FUNC_MAP[ctype],
+        "query": textwrap.indent(_query, "  "),
+        "option": _option
+    })
 
 
 def _feature_column_query(
         categorical_columns: List[str],
         numerical_columns: List[str],
-        features: str) -> str:
+        emit_null: Optional[bool] = None,
+        force_value: Optional[bool] = None) -> str:
     """Build feature column query.
 
     Parameters
@@ -90,8 +131,10 @@ def _feature_column_query(
         A list of categorical column names.
     numerical_columns : :obj:`list` of :obj:`str`
         A list of numerical column names.
-    features : :obj:`str`
-        Features column name.
+    emit_null : bool
+        Ensure output null or 0 if a categorical column is null or 0 value.
+    force_value : bool, optional
+        Force to output value as 1 for categorical columns.
 
     Returns
     -------
@@ -107,22 +150,20 @@ def _feature_column_query(
     _query = ""
 
     if both_column_type:
-        _query = "concat_array(\n"
+        _query = "array_concat(\n"
 
     if exists_numerical:
-        feature_array = _build_feature_array(numerical_columns, "numerical")
+        feature_array = _build_feature_array(numerical_columns, "numerical", emit_null)
         _query += textwrap.indent(feature_array, "  ") if both_column_type else feature_array
 
     if both_column_type:
         _query += ",\n"
 
     if exists_categorical:
-        feature_array = _build_feature_array(categorical_columns, "categorical")
+        feature_array = _build_feature_array(categorical_columns, "categorical", emit_null, force_value)
         _query += textwrap.indent(feature_array, "  ") if both_column_type else feature_array
 
     if both_column_type:
         _query += "\n)"
-
-    _query += " as {}".format(features)
 
     return _query
