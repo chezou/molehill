@@ -1,4 +1,5 @@
 import sys
+import shutil
 import yaml
 from collections import OrderedDict
 from typing import Optional
@@ -76,7 +77,7 @@ class Pipeline(object):
 
         return exec_tasks
 
-    def dump_pipeline(self, config_file: str) -> str:
+    def dump_pipeline(self, config_file: str, overwrite: bool = False) -> str:
         od = OrderedDict
 
         with open(config_file, "r") as f:
@@ -130,6 +131,9 @@ class Pipeline(object):
         workflow["_export"] = export
 
         query_dir = Path(config.get("query_dir", "queries"))
+
+        if overwrite:
+            shutil.rmtree(query_dir)
 
         preparation = od()
 
@@ -311,4 +315,7 @@ class Pipeline(object):
         workflow["+main"] = main
 
         self.workflow_path = "{}.dig".format(source)
+        if not overwrite and Path(self.workflow_path).exists():
+            raise FileExistsError("{} already exists".format(self.workflow_path))
+
         self.save_query(self.workflow_path, yaml.dump(workflow, default_flow_style=False))
