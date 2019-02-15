@@ -1,5 +1,6 @@
 import textwrap
 from builtins import ValueError
+from typing import List
 
 
 class Normalizer:
@@ -21,11 +22,11 @@ class Normalizer:
     >>> build_query([inv_transform_clause], source)
     """
 
-    def __init__(self, strategy="log1p", phase="train"):
+    def __init__(self, strategy: str = "log1p", phase: str = "train") -> None:
         self.strategy = strategy
         self.phase = _phase = "_{}".format(phase) if phase else ""
 
-    def _build_partial_query(self, template, _columns):
+    def _build_partial_query(self, template: str, _columns: List[str]) -> str:
         __query = "\n, ".join(
             template.format_map(
                 {
@@ -37,7 +38,7 @@ class Normalizer:
         )
         return __query
 
-    def transform(self, columns):
+    def transform(self, columns: List[str]) -> str:
         if self.strategy == "log1p":
             _template = textwrap.dedent(
                 """\
@@ -70,7 +71,7 @@ class Normalizer:
 
         return self._build_partial_query(_template, columns)
 
-    def invert_transform(self, columns):
+    def invert_transform(self, columns: List[str]) -> str:
         _query = ""
 
         if self.strategy == "log1p":

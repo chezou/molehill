@@ -1,19 +1,27 @@
 import textwrap
+from typing import List, Optional
 
 
-def build_query(select_clauses, source):
+def build_query(select_clauses: List[str],
+                source: str,
+                condition: Optional[str] = None,
+                without_semicolon: Optional[bool] = None) -> str:
     """Build query from partial select clauses
 
     Parameters
     ----------
-    select_clauses : list of str
+    select_clauses : :obj:`list` of :obj:`str`
         List of partial select clauses.
-    source : str
+    source : :obj:`str`
         Source table name.
+    condition : :obj:`str`, optional
+        Condition like where clause.
+    without_semicolon : bool, optional
+        Whether put semicolon to end of the query or not.
 
     Returns
     -------
-    str
+    :obj:`str`
         Complete query.
 
     Examples
@@ -29,8 +37,8 @@ def build_query(select_clauses, source):
     ;
     """
 
-    if type(select_clauses) is not list:
-        ValueError("select_clauses must be list of str")
+    if not isinstance(select_clauses, list):
+        raise ValueError("select_clauses must be list of str")
 
     query = "select\n"
     _query = ""
@@ -39,7 +47,12 @@ def build_query(select_clauses, source):
 
     query += textwrap.dedent("""
     from
-      {source}
-    ;""").format_map({"source": source})
+      {source}""").format_map({"source": source})
+
+    if condition:
+        query += "\n" + condition
+
+    if not without_semicolon:
+        query += "\n;\n"
 
     return query
