@@ -7,6 +7,20 @@ KNOWN_METRICS = {"logloss", "auc", "mse", "rmse", "mse", "mae", "r2",
                  "average_precision", "hitrate", "ndcg", "precision_at", "recall_at"}
 
 
+def _build_evaluate_clause(
+        metrics: List[str], scoring_template: str, inv_template: str, predicted_column: str, target_column: str):
+
+    return [
+        inv_template.format_map({
+            "scoring": _metric, "predicted_column": predicted_column, "target_column": target_column
+        }) if _metric == "fmeasure"
+        else scoring_template.format_map({
+            "scoring": _metric, "predicted_column": predicted_column, "target_column": target_column
+        })
+        for _metric in metrics
+    ]
+
+
 def evaluate(
         metrics: Union[str, List[str]],
         target_column: str,
@@ -52,15 +66,7 @@ def evaluate(
         select_template = "p.{predicted_column}, t.{target_column}"
         inv_template = "{scoring}({target_column}, {predicted_column}) as {scoring}"
 
-        evaluations = [
-            inv_template.format_map({
-                "scoring": _metric, "predicted_column": predicted_column, "target_column": target_column
-            }) if _metric == "fmeasure"
-            else scoring_template.format_map({
-                "scoring": _metric, "predicted_column": predicted_column, "target_column": target_column
-            })
-            for _metric in _metrics
-        ]
+        evaluations = _build_evaluate_clause(_metrics, scoring_template, inv_template, predicted_column, target_table)
 
         select_clause = select_template.format_map({
                         "predicted_column": predicted_column,
@@ -89,15 +95,7 @@ def evaluate(
         inv_template = "{scoring}(t.{target_column}, p.{predicted_column}) as {scoring}"
 
         # TODO: Handle option for scoring
-        evaluations = [
-            inv_template.format_map({
-                "scoring": _metric, "predicted_column": predicted_column, "target_column": target_column
-            }) if _metric == "fmeasure"
-            else scoring_template.format_map({
-                "scoring": _metric, "predicted_column": predicted_column, "target_column": target_column
-            })
-            for _metric in _metrics
-        ]
+        evaluations = _build_evaluate_clause(_metrics, scoring_template, inv_template, predicted_column, target_table)
 
         cond = """\
         join
