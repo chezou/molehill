@@ -34,7 +34,6 @@ categorical_columns:
 vectorizer:
   train_table: "train"
   test_table: "test"
-  hashing: true
   # emit_null: true
   # bias: true
 
@@ -45,13 +44,15 @@ tuner:
 trainer:
   - name: "train_randomforest_classifier"
     model_table: "model"
-    option: "-trees 100 -seed 31"
+    option: "-trees 15 -seed 31"
+    hashing: true
     # source_table: "train" # Set if you want to set specific table name
 
 predictor:
   - name: "predict_randomforest_classifier"
     model_table: "model"
     output_table: "prediction"
+    hashing: true
     # target_table: "test" # Set if you want to set specific table name
 
 evaluator:

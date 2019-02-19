@@ -1,11 +1,40 @@
 import textwrap
 from typing import Optional, List, Tuple
 from .base import base_model
+from ..utils import build_query
 
 
 def extract_attrs(categorical_columns: List[str], numerical_columns: List[str]) -> str:
     attr_list = ['Q'] * len(numerical_columns) + ['C'] * len(categorical_columns)
     return "-attrs {}".format(','.join(attr_list))
+
+
+def _base_train_query(
+        func_name: str,
+        features: str,
+        source_table: str,
+        target: str,
+        option: str,
+        bias: bool,
+        hashing: bool) -> str:
+
+    with_clause = base_model(
+        func_name,
+        None,
+        features,
+        target,
+        source_table,
+        option,
+        bias=bias,
+        hashing=hashing,
+        with_clause=True)
+
+    # Need to avoid Map format due to TD limitation.
+    exploded_importance = "collect_set(concat(k1, ':', v1)) as var_importance"
+    view_cond = "lateral view explode(var_importance) t1 as k1, v1\ngroup by 1, 2, 3, 5, 6"
+
+    return build_query(["model_id", "model_weight", "model", exploded_importance, "oob_errors", "oob_tests"],
+                       "models", view_cond, with_clauses={"models": with_clause})
 
 
 def train_randomforest_classifier(
@@ -22,10 +51,10 @@ def train_randomforest_classifier(
 
     features :  :obj:`str`
         Feature column name. Default: "features"
-    target : :obj:`str`
-        Target column for prediction
     source_table : :obj:`str`
         Source table name. Default: "training"
+    target : :obj:`str`
+        Target column for prediction
     option : :obj:`str`
         An option string for specific algorithm.
     bias : bool
@@ -39,14 +68,14 @@ def train_randomforest_classifier(
         Built query for training.
     """
 
-    return base_model("train_randomforest_classifier",
-                      None,
-                      features,
-                      target,
-                      source_table,
-                      option,
-                      bias=bias,
-                      hashing=hashing)
+    return _base_train_query(
+        "train_randomforest_classifier",
+        features,
+        source_table,
+        target,
+        option,
+        bias,
+        hashing)
 
 
 def train_randomforest_regressor(
@@ -80,14 +109,14 @@ def train_randomforest_regressor(
         Built query for training.
     """
 
-    return base_model("train_randomforest_regression",
-                      None,
-                      features,
-                      target,
-                      source_table,
-                      option,
-                      bias=bias,
-                      hashing=hashing)
+    return _base_train_query(
+        "train_randomforest_regressor",
+        features,
+        source_table,
+        target,
+        option,
+        bias,
+        hashing)
 
 
 def _build_prediction_query(
@@ -98,12 +127,12 @@ def _build_prediction_query(
         bias: Optional[bool] = None,
         hashing: Optional[bool] = None) -> str:
 
-    _features = "features"
+    _features = "t.features"
     _features = "feature_hashing({})".format(_features) if hashing else _features
     _features = "add_bias({})".format(_features) if bias else _features
 
     query = textwrap.dedent("""\
-    with ensembled (
+    with ensembled as (
       select
         {id},
         rf_ensemble(predicted.value, predicted.posteriori, model_weight) as predicted
@@ -111,7 +140,7 @@ def _build_prediction_query(
         select
           t.{id}, 
           p.model_weight,
-          tree_predict(p.model_id, p.model, t.{features}{classification}) as predicted
+          tree_predict(p.model_id, p.model, {features}{classification}) as predicted
         from (
           select 
             model_id, model_weight, model
@@ -127,7 +156,7 @@ def _build_prediction_query(
     -- DIGDAG_INSERT_LINE
     select 
       {id},
-      predicted.probabilities[1] as probability,
+      predicted.probabilities[1] as probability
     from
       ensembled
     ;""").format_map({"id": id_column, "model_table": model_table, "target_table": target_table, "features": _features,

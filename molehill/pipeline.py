@@ -245,7 +245,7 @@ class Pipeline(object):
             func_name = trainer.pop('name')
             train_func = getattr(mod, func_name)
 
-            if func_name == 'train_randomforest_classifier':
+            if func_name == 'train_randomforest_classifier' and trainer.pop('guess_attrs', None):
                 from .model import extract_attrs
                 _opt = trainer.get('option', '')
                 _opt += ' ' + extract_attrs(categorical_columns, numerical_columns)

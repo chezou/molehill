@@ -10,7 +10,8 @@ def base_model(function: str,
                source_table: str = "training",
                option: Optional[str] = None,
                bias: Optional[bool] = None,
-               hashing: Optional[bool] = None) -> str:
+               hashing: Optional[bool] = None,
+               with_clause: Optional[bool] = None) -> str:
     """Build model query
 
     Parameters
@@ -39,8 +40,8 @@ def base_model(function: str,
         Built query for training.
     """
 
-    _features = "feature_hashing(\n{}\n)".format(features) if hashing else features
-    _features = "add_bias(\n{}\n)".format(_features) if bias else _features
+    _features = "feature_hashing({})".format(features) if hashing else features
+    _features = "add_bias({})".format(_features) if bias else _features
     select_clause = textwrap.dedent("""\
     {function}(
       {features}
@@ -50,4 +51,4 @@ def base_model(function: str,
     _as = ' as ({})' if storage_format else ''
     select_clause += "){}".format(_as)
 
-    return build_query([select_clause], source_table)
+    return build_query([select_clause], source_table, without_semicolon=with_clause)

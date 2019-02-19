@@ -66,7 +66,7 @@ def evaluate(
         select_template = "p.{predicted_column}, t.{target_column}"
         inv_template = "{scoring}({target_column}, {predicted_column}) as {scoring}"
 
-        evaluations = _build_evaluate_clause(_metrics, scoring_template, inv_template, predicted_column, target_table)
+        evaluations = _build_evaluate_clause(_metrics, scoring_template, inv_template, predicted_column, target_column)
 
         select_clause = select_template.format_map({
                         "predicted_column": predicted_column,
@@ -95,7 +95,7 @@ def evaluate(
         inv_template = "{scoring}(t.{target_column}, p.{predicted_column}) as {scoring}"
 
         # TODO: Handle option for scoring
-        evaluations = _build_evaluate_clause(_metrics, scoring_template, inv_template, predicted_column, target_table)
+        evaluations = _build_evaluate_clause(_metrics, scoring_template, inv_template, predicted_column, target_column)
 
         cond = """\
         join
