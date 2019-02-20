@@ -83,12 +83,59 @@ class Pipeline(object):
                         norm = Normalizer(_opt['strategy'], _opt.get('phase'))
                         self.normalization_clauses.extend([norm.transform(_columns)])
 
+    def _build_shuffle_and_split_task(
+            self,
+            stratify: Optional[bool] = None) -> OrderedDict:
+        preparation = od()
+
+        shuffle_query = shuffle(
+            self.columns, target_column=self.target_column, id_column=self.id_column, stratify=stratify)
+        shuffle_path = self.query_dir / "shuffle.sql"
+        self.save_query(shuffle_path, shuffle_query)
+
+        preparation["+shuffle"] = od({
+            "td>": str(shuffle_path),
+            "create_table": "${source}_shuffled"
+        })
+
+        train_query, test_query = train_test_split(stratify=stratify)
+        split_train_path = self.query_dir / "split_train.sql"
+        split_test_path = self.query_dir / "split_test.sql"
+        self.save_query(split_train_path, train_query)
+        self.save_query(split_test_path, test_query)
+
+        preparation["+split"] = od({
+            "_parallel": True,
+            "+train": od({
+                "td>": str(split_train_path),
+                "engine": "presto",
+                "create_table": "${source}_train"
+            }),
+            "+test": od({
+                "td>": str(split_test_path),
+                "engine": "presto",
+                "create_table": "${source}_test"
+            })
+        })
+
+        return preparation
+
     def _build_task_with_stats(
             self,
-            query_path: Path,
+            query_path: str,
             source: str,
             output_prefix: str,
+            target_columns: List[str],
+            target_clauses: List[str],
             hive: Optional[bool] = None) -> Tuple[OrderedDict, str, str]:
+
+        compliment_columns = list(set(self.columns) - set(target_columns))
+        _target_clauses = target_clauses.copy()
+        _target_clauses.extend(compliment_columns)
+        transform_query = build_query(
+            [self.id_column, self.target_column] + _target_clauses, "${source}")
+
+        self.save_query(query_path, transform_query)
 
         source_train = f"{source}_train"
         source_test = f"{source}_test"
@@ -96,7 +143,7 @@ class Pipeline(object):
         vectorize_target_test = f"{output_prefix}_test"
 
         _exec_train_task = od({
-            "td>": str(query_path),
+            "td>": query_path,
             "engine": "hive" if hive else "presto",
             "source": source_train,
             "create_table": vectorize_target_train
@@ -234,6 +281,7 @@ class Pipeline(object):
         self.target_column = config['target_column']
         train_sample_rate = config["train_sample_rate"]
 
+        # Extract column related information.
         self._set_columns(config)
 
         workflow = od()
@@ -248,38 +296,7 @@ class Pipeline(object):
         if overwrite:
             shutil.rmtree(self.query_dir)
 
-        preparation = od()
-
-        stratify = config.get("stratify")
-        shuffle_query = shuffle(
-            self.columns, target_column=self.target_column, id_column=self.id_column, stratify=stratify)
-        shuffle_path = self.query_dir / "shuffle.sql"
-        self.save_query(shuffle_path, shuffle_query)
-
-        preparation["+shuffle"] = od({
-            "td>": str(shuffle_path),
-            "create_table": "${source}_shuffled"
-        })
-
-        train_query, test_query = train_test_split(stratify=stratify)
-        split_train_path = self.query_dir / "split_train.sql"
-        split_test_path = self.query_dir / "split_test.sql"
-        self.save_query(split_train_path, train_query)
-        self.save_query(split_test_path, test_query)
-
-        preparation["+split"] = od({
-            "_parallel": True,
-            "+train": od({
-                "td>": str(split_train_path),
-                "engine": "presto",
-                "create_table": "${source}_train"
-            }),
-            "+test": od({
-                "td>": str(split_test_path),
-                "engine": "presto",
-                "create_table": "${source}_test"
-            })
-        })
+        preparation = self._build_shuffle_and_split_task(stratify=config.get("stratify"))
 
         do_imputation = len(self.imputation_clauses) > 0
         do_normalization = len(self.normalization_clauses) > 0
@@ -302,25 +319,18 @@ class Pipeline(object):
                 "create_table": "${source}_stats"})
 
         if do_imputation:
-            non_imputed_columns = list(set(self.columns) - set(self.imputed_columns))
-            self.imputation_clauses.extend(non_imputed_columns)
-            imputation_query = build_query([self.id_column, self.target_column] + self.imputation_clauses, "${source}")
-            impute_path = self.query_dir / "impute.sql"
-            self.save_query(impute_path, imputation_query)
+            impute_path = str(self.query_dir / "impute.sql")
 
             preparation["+imputation"], vectorize_target_train, vectorize_target_test = self._build_task_with_stats(
-                impute_path, source, "{}_imputed".format(source))
+                impute_path, source, "{}_imputed".format(source),
+                self.imputed_columns, self.imputation_clauses)
 
         if do_normalization:
-            non_normalized_columns = list(set(self.columns) - set(self.normalized_columns))
-            self.normalization_clauses.extend(non_normalized_columns)
-            normalization_query = build_query(
-                [self.id_column, self.target_column] + self.normalization_clauses, "${source}")
-            normalize_path = self.query_dir / "normalize.sql"
-            self.save_query(normalize_path, normalization_query)
+            normalize_path = str(self.query_dir / "normalize.sql")
 
             preparation["+normalization"], vectorize_target_train, vectorize_target_test = self._build_task_with_stats(
-                normalize_path, "{}_imputed".format(source), "{}_norm".format(source), hive=True)
+                normalize_path, "{}_imputed".format(source), "{}_norm".format(source),
+                self.normalized_columns, self.normalization_clauses, hive=True)
 
         workflow["+preparation"] = preparation
 
