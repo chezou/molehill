@@ -29,7 +29,7 @@ categorical_columns:
         strategy: "constant"
         phase: "train"
         fill_value: "missing"
-      # quantify: true # Not implemented yet
+        # quantify: true # Not implemented yet
 
 vectorizer:
   train_table: "train"

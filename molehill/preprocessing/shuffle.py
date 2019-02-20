@@ -7,7 +7,6 @@ def shuffle(columns: List[str],
             source: str = "${source}",
             id_column: str = "rowid",
             stratify: Optional[bool] = None,
-            class_label: Optional[str] = None,
             rnd_seed: Optional[int] = 32,
             cluster_seed: Optional[int] = 43) -> str:
     """Build shuffle query for random sampling. Should be executed by Hive
@@ -25,8 +24,6 @@ def shuffle(columns: List[str],
     stratify : bool, optional
         Flag for using stratified sampling.
         This flag requires class_label option and should ally with train_test_split function's option.
-    class_label: :obj:`str`, optional
-        Target class label for stratified split.
     rnd_seed : int, optional
         Random seed for random number for sampling.
     cluster_seed : int, optional
@@ -38,19 +35,17 @@ def shuffle(columns: List[str],
         Shuffle query
     """
 
-    _columns = ["rowid() as {}".format(id_column), target_column] + columns
+    _columns = [f"rowid() as {id_column}", target_column] + columns
     cond = ""
 
     if stratify:
         _columns.extend([
-            "count(1) over (partition by {}) as per_label_count".format(target_column),
-            "rank() over (partition by {} order by rand({}) as rank_in_label".format(
-                class_label, rnd_seed
-            )
+            f"count(1) over (partition by {target_column}) as per_label_count",
+            f"rank() over (partition by {target_column} order by rand({rnd_seed}) as rank_in_label"
         ])
     else:
-        _columns.extend(["rand({}) as rnd".format(rnd_seed)])
-        cond = "cluster by rand({})".format(cluster_seed)
+        _columns.extend([f"rand({rnd_seed}) as rnd"])
+        cond = f"cluster by rand({cluster_seed})"
 
     return build_query(_columns, source, cond)
 
