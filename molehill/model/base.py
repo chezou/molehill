@@ -40,15 +40,15 @@ def base_model(function: str,
         Built query for training.
     """
 
-    _features = "feature_hashing({})".format(features) if hashing else features
-    _features = "add_bias({})".format(_features) if bias else _features
+    _features = f"feature_hashing({features})" if hashing else features
+    _features = f"add_bias({_features})" if bias else _features
     select_clause = textwrap.dedent("""\
     {function}(
       {features}
       , {target}
     """.format_map({"function": function, "features": _features, "target": target}))
-    select_clause += "  , '{}'\n".format(option) if option else ""
-    _as = ' as ({})' if storage_format else ''
-    select_clause += "){}".format(_as)
+    select_clause += f"  , '{option}'\n" if option else ""
+    _as = f" as ({storage_format})" if storage_format else ''
+    select_clause += f"){_as}"
 
     return build_query([select_clause], source_table, without_semicolon=with_clause)
