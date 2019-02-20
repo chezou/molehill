@@ -250,7 +250,7 @@ class Pipeline(object):
 
         model_table = config.pop('model_table', "model")
         train_query = train_func(**dict(config, **{"target": self.target_column}))
-        _query_path = self.query_dir / "{}.sql".format(func_name)
+        _query_path = self.query_dir / f"{func_name}.sql"
         self.save_query(_query_path, train_query)
 
         return od({
@@ -271,13 +271,13 @@ class Pipeline(object):
         func_name = config.pop('name')
         pred_func = getattr(mod, func_name)
 
-        default_table = "prediction" if multiple_predictors else "prediction_{}".format(pred_idx)
+        default_table = "prediction" if multiple_predictors else f"prediction_{pred_idx}"
         predict_table = config.pop("output_table", default_table)
         test_table = config.pop("target_table", test_table)
         model_table = config.pop("model_table", "model")
 
         predict_query, predicted_col = pred_func(**dict(config, **{"id_column": self.id_column}))
-        _query_path = self.query_dir / "{}.sql".format(func_name)
+        _query_path = self.query_dir / f"{func_name}.sql"
         self.save_query(_query_path, predict_query)
 
         acc_template = "{metric}: ${{td.last_results.{metric}}}"
@@ -350,7 +350,7 @@ class Pipeline(object):
                 "create_table": "${source}_stats"})
 
         if do_imputation:
-            output_prefix = "{}_imputed".format(source)
+            output_prefix = f"{source}_imputed"
             preparation["+imputation"], vectorize_target_train, vectorize_target_test = self._build_task_with_stats(
                 query_basename="impute", source=source, source_whole=vectorize_target_whole,
                 output_prefix=output_prefix,
@@ -359,9 +359,9 @@ class Pipeline(object):
             vectorize_target_whole = output_prefix
 
         if do_normalization:
-            output_prefix = "{}_norm".format(source)
+            output_prefix = f"{source}_norm"
             preparation["+normalization"], vectorize_target_train, vectorize_target_test = self._build_task_with_stats(
-                query_basename="normalize", source="{}_imputed".format(source), source_whole=vectorize_target_whole,
+                query_basename="normalize", source=f"{source}_imputed", source_whole=vectorize_target_whole,
                 output_prefix=output_prefix,
                 target_columns=self.normalized_columns, target_clauses=self.normalization_clauses,
                 target_clauses_whole=self.normalization_clauses_whole, hive=True)
@@ -382,7 +382,7 @@ class Pipeline(object):
         train_idx = 0
         train_tasks = od()
         for trainer in config.get('trainer', {}):
-            train_tasks["+train_{}".format(train_idx)] = self._build_train_task(trainer, mod, train_table)
+            train_tasks[f"+train_{train_idx}"] = self._build_train_task(trainer, mod, train_table)
             train_idx += 1
 
         if train_idx > 1:
@@ -405,7 +405,7 @@ class Pipeline(object):
         predictors = config.get('predictor', {})
 
         for predictor in predictors:
-            pred_tasks["+seq_{}".format(pred_idx)] = self._build_predict_and_eval_task(
+            pred_tasks[f"+seq_{pred_idx}"] = self._build_predict_and_eval_task(
                 predictor, mod, pred_idx, test_table, metrics, len(predictors) == 1)
 
             pred_idx += 1
@@ -416,9 +416,9 @@ class Pipeline(object):
         main["+predict"] = pred_tasks
         workflow["+main"] = main
 
-        self.workflow_path = dest_file if dest_file else "{}.dig".format(source)
+        self.workflow_path = dest_file if dest_file else f"{source}.dig"
 
         if not overwrite and Path(dest_file).exists():
-            raise FileExistsError("{} already exists".format(self.workflow_path))
+            raise FileExistsError(f"{self.workflow_path} already exists")
 
         self.save_query(self.workflow_path, yaml.dump(workflow, default_flow_style=False))

@@ -44,6 +44,5 @@ def combine_train_test_stats(source: str, numerical_columns: List[str]) -> str:
         for column, phase in itertools.product(numerical_columns, ["train", "test", "whole"])
     )
 
-    _source = "{source}_train_stats as train, {source}_test_stats as test, {source}_stats as whole".format_map(
-        {"source": source})
+    _source = f"{source}_train_stats as train, {source}_test_stats as test, {source}_stats as whole"
     return build_query([_query], _source)

@@ -6,7 +6,7 @@ from ..utils import build_query
 
 def extract_attrs(categorical_columns: List[str], numerical_columns: List[str]) -> str:
     attr_list = ['Q'] * len(numerical_columns) + ['C'] * len(categorical_columns)
-    return "-attrs {}".format(','.join(attr_list))
+    return f"-attrs {','.join(attr_list)}"
 
 
 def _base_train_query(
@@ -128,8 +128,8 @@ def _build_prediction_query(
         hashing: Optional[bool] = None) -> str:
 
     _features = "t.features"
-    _features = "feature_hashing({})".format(_features) if hashing else _features
-    _features = "add_bias({})".format(_features) if bias else _features
+    _features = f"feature_hashing({_features})" if hashing else _features
+    _features = f"add_bias({_features})" if bias else _features
 
     query = textwrap.dedent("""\
     with ensembled as (
