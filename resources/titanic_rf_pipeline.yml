@@ -43,14 +43,14 @@ tuner:
 
 trainer:
   - name: "train_randomforest_classifier"
-    model_table: "model"
+    model_table: "model_rf"
     option: "-trees 15 -seed 31"
     hashing: true
     # source_table: "train" # Set if you want to set specific table name
 
 predictor:
   - name: "predict_randomforest_classifier"
-    model_table: "model"
+    model_table: "model_rf"
     output_table: "prediction"
     hashing: true
     # target_table: "test" # Set if you want to set specific table name

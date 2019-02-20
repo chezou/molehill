@@ -290,6 +290,7 @@ class Pipeline(object):
             default_table = "prediction" if len(predictors) == 1 else "prediction_{}".format(pred_idx)
             predict_table = predictor.pop("output_table", default_table)
             test_table = predictor.pop("target_table", test_table)
+            model_table = predictor.pop("model_table", "model")
 
             predict_query, predicted_col = pred_func(**dict(predictor, **{"id_column": id_col}))
             _query_path = query_dir / "{}.sql".format(func_name)
@@ -302,7 +303,8 @@ class Pipeline(object):
                 "+exec_predict": od({
                     "td>": str(_query_path),
                     "target_table": test_table,
-                    "create_table": predict_table
+                    "create_table": predict_table,
+                    "model_table": model_table
                 }),
                 "+evaluate": od({
                     "td>": str(query_dir / "evaluate.sql"),

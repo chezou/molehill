@@ -130,7 +130,7 @@ def predict_classifier(
         target_table: str = "${target_table}",
         id_column: str = "rowid",
         features: str = "features",  # TODO: Remove this option
-        model_table: str = "model",
+        model_table: str = "${model_table}",
         model_weight: str = "weight",  # TODO: Remove this option
         model_feature: str = "feature",  # TODO: Remove this option
         sigmoid: Optional[bool] = True,
@@ -185,7 +185,7 @@ def predict_regressor(
         target_table: str = "${target_table}",
         id_column: str = "rowid",
         features: str = "features",
-        model_table: str = "model",
+        model_table: str = "${model_table}",
         model_weight: str = "weight",
         model_feature: str = "feature",
         predicted_column: str = "target",

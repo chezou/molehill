@@ -168,7 +168,7 @@ def _build_prediction_query(
 def predict_randomforest_classifier(
         target_table: Optional[str] = "${target_table}",
         id_column: Optional[str] = "rowid",
-        model_table: Optional[str] = "model",
+        model_table: Optional[str] = "${model_table}",
         bias: Optional[bool] = None,
         hashing: Optional[bool] = None) -> Tuple[str, str]:
     """Build prediction query for randomforest classifier.
@@ -201,7 +201,7 @@ def predict_randomforest_classifier(
 def predict_randomforest_regressor(
         target_table: str = "${target_table}",
         id_column: str = "rowid",
-        model_table: str = "model",
+        model_table: str = "${model_table}",
         bias: Optional[bool] = None,
         hashing: Optional[bool] = None) -> Tuple[str, str]:
     """Build prediction query for randomforest regressor.
