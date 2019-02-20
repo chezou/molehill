@@ -34,8 +34,10 @@ class Pipeline(object):
         self.categorical_columns = []
         self.imputed_columns = []
         self.imputation_clauses = []
+        self.imputation_clauses_whole = []
         self.normalized_columns = []
         self.normalization_clauses = []
+        self.normalization_clauses_whole = []
         self.id_column = None
         self.target_column = None
 
@@ -76,12 +78,19 @@ class Pipeline(object):
                                       _opt.get('fill_value'),
                                       column_type == "categorical_columns")
                         self.imputation_clauses.extend([imp.transform(_columns)])
+                        imp_whole = Imputer(_opt['strategy'],
+                                            None,
+                                            _opt.get('fill_value'),
+                                            column_type == "categorical_columns")
+                        self.imputation_clauses_whole.extend([imp_whole.transform(_columns)])
 
                     if cols['transformer'].get('normalizer'):
                         self.normalized_columns.extend(_columns)
                         _opt = cols['transformer']['normalizer']
                         norm = Normalizer(_opt['strategy'], _opt.get('phase'))
                         self.normalization_clauses.extend([norm.transform(_columns)])
+                        norm_whole = Normalizer(_opt['strategy'], None)
+                        self.normalization_clauses_whole.extend([norm_whole.transform(_columns)])
 
     def _build_shuffle_and_split_task(
             self,
@@ -122,20 +131,30 @@ class Pipeline(object):
 
     def _build_task_with_stats(
             self,
-            query_path: str,
+            query_basename: str,
             source: str,
+            source_whole: Optional[str],
             output_prefix: str,
             target_columns: List[str],
             target_clauses: List[str],
+            target_clauses_whole: Optional[List[str]],
             hive: Optional[bool] = None) -> Tuple[OrderedDict, str, str]:
 
-        compliment_columns = list(set(self.columns) - set(target_columns))
+        query_path = str(self.query_dir / f"{query_basename}.sql")
+        query_path_whole = str(self.query_dir / f"{query_basename}_whole.sql")
+        complement_columns = list(set(self.columns) - set(target_columns))
         _target_clauses = target_clauses.copy()
-        _target_clauses.extend(compliment_columns)
+        _target_clauses.extend(complement_columns)
+        _target_clauses_whole = target_clauses_whole.copy()
+        _target_clauses_whole.extend(complement_columns)
+
         transform_query = build_query(
             [self.id_column, self.target_column] + _target_clauses, "${source}")
+        transform_query_whole = build_query(
+            [self.id_column, self.target_column] + _target_clauses_whole, "${source}")
 
         self.save_query(query_path, transform_query)
+        self.save_query(query_path_whole, transform_query_whole)
 
         source_train = f"{source}_train"
         source_test = f"{source}_test"
@@ -151,7 +170,7 @@ class Pipeline(object):
         exec_tasks = od({
             "+compute_stats": od({
                 "_parallel": True,
-                # "+whole": od(self.comp_stats_task, **{"source": source}),
+                "+whole": od(self.comp_stats_task, **{"source": source_whole}),
                 "+train": od(self.comp_stats_task, **{"source": source_train}),
                 "+test": od(self.comp_stats_task, **{"source": source_test})
             }),
@@ -162,6 +181,10 @@ class Pipeline(object):
             }),
             "+execute": od({
                 "_parallel": True,
+                "+whole": od(_exec_train_task,
+                             **{"td>": query_path_whole,
+                                "source": source_whole,
+                                "create_table": output_prefix}),
                 "+train": _exec_train_task,
                 "+test": od(_exec_train_task,
                             **{"source": source_test,
@@ -174,11 +197,13 @@ class Pipeline(object):
     def _build_vectorize_task(
             self,
             conf: Dict[str, Any],
+            source: str,
             source_train: str,
             source_test: str) -> Tuple[OrderedDict, str, str]:
 
         train_table = conf.pop("train_table", "train")
         test_table = conf.pop("test_table", "test")
+        whole_table = conf.pop("whole_table", "whole")
 
         vect_default_opt = {"categorical_columns": self.categorical_columns,
                             "numerical_columns": self.numerical_columns,
@@ -189,6 +214,11 @@ class Pipeline(object):
 
         vectorize_task = od({
             "_parallel": True,
+            "+whole": od({
+                "td>": str(vectorize_path),
+                "source": source,
+                "create_table": whole_table
+            }),
             "+train": od({
                 "td>": str(vectorize_path),
                 "source": source_train,
@@ -301,8 +331,9 @@ class Pipeline(object):
         do_imputation = len(self.imputation_clauses) > 0
         do_normalization = len(self.normalization_clauses) > 0
 
-        vectorize_target_train = "{}_train".format(source)
-        vectorize_target_test = "{}_test".format(source)
+        vectorize_target_train = f"{source}_train"
+        vectorize_target_test = f"{source}_test"
+        vectorize_target_whole = f"{source}_shuffled"
 
         if do_imputation or do_normalization:
             stats_query = compute_stats("${source}", self.numerical_columns)
@@ -319,23 +350,28 @@ class Pipeline(object):
                 "create_table": "${source}_stats"})
 
         if do_imputation:
-            impute_path = str(self.query_dir / "impute.sql")
-
+            output_prefix = "{}_imputed".format(source)
             preparation["+imputation"], vectorize_target_train, vectorize_target_test = self._build_task_with_stats(
-                impute_path, source, "{}_imputed".format(source),
-                self.imputed_columns, self.imputation_clauses)
+                query_basename="impute", source=source, source_whole=vectorize_target_whole,
+                output_prefix=output_prefix,
+                target_columns=self.imputed_columns, target_clauses=self.imputation_clauses,
+                target_clauses_whole=self.imputation_clauses_whole)
+            vectorize_target_whole = output_prefix
 
         if do_normalization:
-            normalize_path = str(self.query_dir / "normalize.sql")
-
+            output_prefix = "{}_norm".format(source)
             preparation["+normalization"], vectorize_target_train, vectorize_target_test = self._build_task_with_stats(
-                normalize_path, "{}_imputed".format(source), "{}_norm".format(source),
-                self.normalized_columns, self.normalization_clauses, hive=True)
+                query_basename="normalize", source="{}_imputed".format(source), source_whole=vectorize_target_whole,
+                output_prefix=output_prefix,
+                target_columns=self.normalized_columns, target_clauses=self.normalization_clauses,
+                target_clauses_whole=self.normalization_clauses_whole, hive=True)
+            vectorize_target_whole = output_prefix
 
         workflow["+preparation"] = preparation
 
         workflow["+vectorization"], train_table, test_table = self._build_vectorize_task(
-            config.get("vectorizer", {}), source_train=vectorize_target_train, source_test=vectorize_target_test)
+            config.get("vectorizer", {}), source=vectorize_target_whole,
+            source_train=vectorize_target_train, source_test=vectorize_target_test)
 
         # Preparation for loading train/predict functions dynamically
         __import__('molehill.model')

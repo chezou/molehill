@@ -33,6 +33,8 @@ def base_model(function: str,
         Add bias or not.
     hashing : bool, optional
         Execute feature hashing.
+    with_clause : bool, optional
+        Existence of with clause.
 
     Returns
     --------

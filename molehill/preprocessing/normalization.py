@@ -1,6 +1,6 @@
 import textwrap
 from builtins import ValueError
-from typing import List
+from typing import List, Optional
 
 
 class Normalizer:
@@ -22,7 +22,7 @@ class Normalizer:
     >>> build_query([inv_transform_clause], source)
     """
 
-    def __init__(self, strategy: str = "log1p", phase: str = "train") -> None:
+    def __init__(self, strategy: str = "log1p", phase: Optional[str] = "train") -> None:
         self.strategy = strategy
         self.phase = _phase = "_{}".format(phase) if phase else ""
 
