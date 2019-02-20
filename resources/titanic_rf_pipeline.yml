@@ -1,0 +1,61 @@
+# Same example with https://scikit-learn.org/stable/auto_examples/compose/plot_column_transformer_mixed_types.html
+source: titanic
+dbname: ml_tips
+train_sample_rate: 0.8
+
+query_dir: queries
+
+id_column: "rowid"
+target_column: "survived"
+
+#stratify: True
+
+numerical_columns:
+  - columns:
+      - "age"
+      - "fare"
+    transformer:
+      imputer:
+        strategy: "median" # median, mean, constant
+        phase: "train" # train, test, or null (whole dataset to get stats)
+
+categorical_columns:
+  - columns:
+      - "embarked"
+      - "sex"
+      - "pclass"
+    transformer:
+      imputer:
+        strategy: "constant"
+        phase: "train"
+        fill_value: "missing"
+      # quantify: true # Not implemented yet
+
+vectorizer:
+  train_table: "train"
+  test_table: "test"
+  # emit_null: true
+  # bias: true
+
+# Not implemented yet
+tuner:
+  strategy: "gridsearch" # gridsearch, randomsearch, python
+
+trainer:
+  - name: "train_randomforest_classifier"
+    model_table: "model_rf"
+    option: "-trees 15 -seed 31"
+    hashing: true
+    # source_table: "train" # Set if you want to set specific table name
+
+predictor:
+  - name: "predict_randomforest_classifier"
+    model_table: "model_rf"
+    output_table: "prediction"
+    hashing: true
+    # target_table: "test" # Set if you want to set specific table name
+
+evaluator:
+  metrics:
+    - auc
+    - logloss

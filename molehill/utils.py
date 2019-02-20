@@ -5,7 +5,8 @@ from typing import List, Optional
 def build_query(select_clauses: List[str],
                 source: str,
                 condition: Optional[str] = None,
-                without_semicolon: Optional[bool] = None) -> str:
+                without_semicolon: Optional[bool] = None,
+                with_clauses: Optional[dict] = None) -> str:
     """Build query from partial select clauses
 
     Parameters
@@ -40,7 +41,24 @@ def build_query(select_clauses: List[str],
     if not isinstance(select_clauses, list):
         raise ValueError("select_clauses must be list of str")
 
-    query = "select\n"
+    query = ""
+
+    if not with_clauses:
+        with_clauses = {}
+
+    _with_clauses = []
+
+    for k, v in with_clauses.items():
+        tmp = """\
+with {view} as (
+{select}
+)""".format(view=k, select=textwrap.indent(v, "  "))
+        _with_clauses.append(tmp)
+
+    if len(with_clauses) > 0:
+        query += "{_with}\n-- DIGDAG_INSERT_LINE\n".format(_with=',\n'.join(_with_clauses))
+
+    query += "select\n"
     _query = ""
     _query += "\n, ".join(select_clauses)
     query += textwrap.indent(_query, "  ")
@@ -52,7 +70,7 @@ def build_query(select_clauses: List[str],
     if condition:
         query += "\n" + condition
 
-    if not without_semicolon:
+    if not without_semicolon or not len(with_clauses) == 0:
         query += "\n;\n"
 
     return query

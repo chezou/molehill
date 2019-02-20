@@ -8,7 +8,8 @@ def train_classifier(
         target: str = "target",
         source_table: str = "${source}",
         option: Optional[str] = None,
-        bias: Optional[bool] = None) -> str:
+        bias: Optional[bool] = None,
+        hashing: Optional[bool] = None) -> str:
     """Build train_classifier query
 
     Parameters
@@ -24,6 +25,8 @@ def train_classifier(
         An option string for specific algorithm.
     bias : bool
         Add bias or not.
+    hashing : bool, optional
+        Execute feature hashing.
 
     Returns
     --------
@@ -37,7 +40,8 @@ def train_classifier(
                       target,
                       source_table,
                       option,
-                      bias)
+                      bias=bias,
+                      hashing=hashing)
 
 
 def train_regressor(
@@ -45,7 +49,8 @@ def train_regressor(
         source_table: str = "${source}",
         target: str = "target",
         option: Optional[str] = None,
-        bias: Optional[bool] = None) -> str:
+        bias: Optional[bool] = None,
+        hashing: Optional[bool] = None) -> str:
     """Build train_classifier query
 
     Parameters
@@ -61,6 +66,8 @@ def train_regressor(
         An option string for specific algorithm.
     bias : bool
         Add bias or not.
+    hashing : bool, optional
+        Execute feature hashing.
 
     Returns
     --------
@@ -74,7 +81,8 @@ def train_regressor(
                       target,
                       source_table,
                       option,
-                      bias)
+                      bias=bias,
+                      hashing=hashing)
 
 
 def _build_prediction_query(
@@ -83,7 +91,9 @@ def _build_prediction_query(
         id_column: str,
         features: str,
         model_table: str,
-        model_feature: str) -> str:
+        model_feature: str,
+        bias: bool,
+        hashing: bool) -> str:
 
     template = textwrap.dedent("""\
     with features_exploded as (
@@ -108,8 +118,10 @@ def _build_prediction_query(
     ;
     """)
 
+    _features = "feature_hashing({})".format(features) if hashing else features
+    _features = "add_bias({})".format(_features) if bias else _features
     return template.format_map({
-        "id": id_column, "target_table": target_table, "features": features,
+        "id": id_column, "target_table": target_table, "features": _features,
         "total_weight": total_weight, "model_table": model_table, "model_feature": model_feature
     })
 
@@ -117,11 +129,13 @@ def _build_prediction_query(
 def predict_classifier(
         target_table: str = "${target_table}",
         id_column: str = "rowid",
-        features: str = "features",
-        model_table: str = "model",
-        model_weight: str = "weight",
-        model_feature: str = "feature",
-        sigmoid: Optional[bool] = True) -> Tuple[str, str]:
+        features: str = "features",  # TODO: Remove this option
+        model_table: str = "${model_table}",
+        model_weight: str = "weight",  # TODO: Remove this option
+        model_feature: str = "feature",  # TODO: Remove this option
+        sigmoid: Optional[bool] = True,
+        bias: Optional[bool] = None,
+        hashing: Optional[bool] = None) -> Tuple[str, str]:
     """Build a prediction query for train_classifiere
 
     Parameters
@@ -142,6 +156,11 @@ def predict_classifier(
         Flag for using sigmoid or not. If you used logistic loss, sigmoid works fine.
         With this flag, the calculated column name will be probability, otherwise it'll be total_weight
         Default: True
+    bias : bool
+        Add bias or not.
+    hashing : bool, optional
+        Execute feature hashing.
+
     Returns
     --------
     :obj:`str`
@@ -158,7 +177,7 @@ def predict_classifier(
         _total_weight = "sum(m1.{} * t1.value) as total_weight".format(model_weight)
 
     return _build_prediction_query(
-        _total_weight, target_table, id_column, features, model_table, model_feature
+        _total_weight, target_table, id_column, features, model_table, model_feature, bias=bias, hashing=hashing
     ), predicted_column
 
 
@@ -166,10 +185,12 @@ def predict_regressor(
         target_table: str = "${target_table}",
         id_column: str = "rowid",
         features: str = "features",
-        model_table: str = "model",
+        model_table: str = "${model_table}",
         model_weight: str = "weight",
         model_feature: str = "feature",
-        predicted_column: str = "target") -> Tuple[str, str]:
+        predicted_column: str = "target",
+        bias: Optional[bool] = None,
+        hashing: Optional[bool] = None) -> Tuple[str, str]:
     """Build a prediction query for train_regressor
 
     Parameters
@@ -188,6 +209,11 @@ def predict_regressor(
         A column name for feature in a model table.
     predicted_column : :obj:`str`
         A column name to store prediction results.
+    bias : bool
+        Add bias or not.
+    hashing : bool, optional
+        Execute feature hashing.
+
     Returns
     --------
     :obj:`str`
@@ -199,5 +225,5 @@ def predict_regressor(
     _total_weight = "sum(m1.{} * t1.value) as {}".format(model_weight, predicted_column)
 
     return _build_prediction_query(
-        _total_weight, target_table, id_column, features, model_table, model_feature
+        _total_weight, target_table, id_column, features, model_table, model_feature, bias=bias, hashing=hashing
     ), predicted_column

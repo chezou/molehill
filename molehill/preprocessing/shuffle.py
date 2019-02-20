@@ -25,6 +25,8 @@ def shuffle(columns: List[str],
     stratify : bool, optional
         Flag for using stratified sampling.
         This flag requires class_label option and should ally with train_test_split function's option.
+    class_label: :obj:`str`, optional
+        Target class label for stratified split.
     rnd_seed : int, optional
         Random seed for random number for sampling.
     cluster_seed : int, optional
