@@ -30,7 +30,7 @@ def _base_train_query(
         with_clause=True)
 
     # Need to avoid Map format due to TD limitation.
-    exploded_importance = "concat_ws(',', collect_set(concat(k1, '=', v1))) as var_importance"
+    exploded_importance = "concat_ws(',', collect_set(concat(k1, ':', v1))) as var_importance"
     view_cond = "lateral view explode(var_importance) t1 as k1, v1\ngroup by 1, 2, 3, 5, 6"
 
     return build_query(["model_id", "model_weight", "model", exploded_importance, "oob_errors", "oob_tests"],
