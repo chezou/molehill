@@ -21,7 +21,7 @@ class Imputer:
 
     def __init__(self,
                  strategy: str = "mean",
-                 phase: str = "train",
+                 phase: Optional[str] = "train",
                  fill_value: Optional[Any] = None,
                  categorical: Optional[bool] = None) -> None:
         self.strategy = strategy

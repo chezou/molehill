@@ -118,8 +118,8 @@ def _build_prediction_query(
     ;
     """)
 
-    _features = "feature_hashing({})".format(features) if hashing else features
-    _features = "add_bias({})".format(_features) if bias else _features
+    _features = f"feature_hashing({features})" if hashing else features
+    _features = f"add_bias({_features})" if bias else _features
     return template.format_map({
         "id": id_column, "target_table": target_table, "features": _features,
         "total_weight": total_weight, "model_table": model_table, "model_feature": model_feature
@@ -171,10 +171,10 @@ def predict_classifier(
 
     if sigmoid:
         predicted_column = "probability"
-        _total_weight = "sigmoid(sum(m1.{} * t1.value)) as probability".format(model_weight)
+        _total_weight = f"sigmoid(sum(m1.{model_weight} * t1.value)) as probability"
     else:
         predicted_column = "total_weight"
-        _total_weight = "sum(m1.{} * t1.value) as total_weight".format(model_weight)
+        _total_weight = f"sum(m1.{model_weight} * t1.value) as total_weight"
 
     return _build_prediction_query(
         _total_weight, target_table, id_column, features, model_table, model_feature, bias=bias, hashing=hashing
@@ -222,7 +222,7 @@ def predict_regressor(
         Predicted column name. For compatibility with predict_classifier.
     """
 
-    _total_weight = "sum(m1.{} * t1.value) as {}".format(model_weight, predicted_column)
+    _total_weight = f"sum(m1.{model_weight} * t1.value) as {predicted_column}"
 
     return _build_prediction_query(
         _total_weight, target_table, id_column, features, model_table, model_feature, bias=bias, hashing=hashing

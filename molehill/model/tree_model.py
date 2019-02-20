@@ -6,7 +6,7 @@ from ..utils import build_query
 
 def extract_attrs(categorical_columns: List[str], numerical_columns: List[str]) -> str:
     attr_list = ['Q'] * len(numerical_columns) + ['C'] * len(categorical_columns)
-    return "-attrs {}".format(','.join(attr_list))
+    return f"-attrs {','.join(attr_list)}"
 
 
 def _base_train_query(
@@ -30,7 +30,7 @@ def _base_train_query(
         with_clause=True)
 
     # Need to avoid Map format due to TD limitation.
-    exploded_importance = "collect_set(concat(k1, ':', v1)) as var_importance"
+    exploded_importance = "concat_ws(',', collect_set(concat(k1, ':', v1))) as var_importance"
     view_cond = "lateral view explode(var_importance) t1 as k1, v1\ngroup by 1, 2, 3, 5, 6"
 
     return build_query(["model_id", "model_weight", "model", exploded_importance, "oob_errors", "oob_tests"],
@@ -128,8 +128,8 @@ def _build_prediction_query(
         hashing: Optional[bool] = None) -> str:
 
     _features = "t.features"
-    _features = "feature_hashing({})".format(_features) if hashing else _features
-    _features = "add_bias({})".format(_features) if bias else _features
+    _features = f"feature_hashing({_features})" if hashing else _features
+    _features = f"add_bias({_features})" if bias else _features
 
     query = textwrap.dedent("""\
     with ensembled as (

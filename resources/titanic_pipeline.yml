@@ -36,6 +36,7 @@ categorical_columns:
 vectorizer:
   train_table: "train"
   test_table: "test"
+  # whole_table: "whole" # vectorize all data
 
 # Not implemented yet
 tuner:

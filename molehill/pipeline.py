@@ -2,7 +2,7 @@ import sys
 import shutil
 import yaml
 from collections import OrderedDict
-from typing import Optional
+from typing import Optional, List, Tuple, Any, Dict, Type
 from pathlib import Path
 from .preprocessing import shuffle, train_test_split
 from .preprocessing import Imputer, Normalizer
@@ -18,6 +18,8 @@ def _represent_odict(dumper, instance):
 
 yaml.add_representer(OrderedDict, _represent_odict)
 
+od = OrderedDict
+
 
 class Pipeline(object):
     def __init__(self):
@@ -26,6 +28,18 @@ class Pipeline(object):
         self.vectorize_target_train = None
         self.vectorize_target_test = None
         self.workflow_path = None
+        self.query_dir = None
+        self.columns = []
+        self.numerical_columns = []
+        self.categorical_columns = []
+        self.imputed_columns = []
+        self.imputation_clauses = []
+        self.imputation_clauses_whole = []
+        self.normalized_columns = []
+        self.normalization_clauses = []
+        self.normalization_clauses_whole = []
+        self.id_column = None
+        self.target_column = None
 
     @staticmethod
     def save_query(file_path: str, query: str) -> None:
@@ -35,109 +49,57 @@ class Pipeline(object):
         with p.open('w', encoding='utf-8') as f:
             f.write(query)
 
-    def _build_task_with_stats(
-            self, query_path, source: str, output_prefix: str, hive: Optional[bool] = None):
+    def _set_columns(self, config: Dict[str, Any]) -> None:
+        """Set columns, numerical_columns, categorical_columns from config. It also set transformation clauses
 
-        od = OrderedDict
-
-        source_train = self.vectorize_target_train
-        source_test = self.vectorize_target_test
-        self.vectorize_target_train = "{}_train".format(output_prefix)
-        self.vectorize_target_test = "{}_test".format(output_prefix)
-
-        _exec_train_task = od({
-            "td>": str(query_path),
-            "engine": "hive" if hive else "presto",
-            "source": source_train,
-            "create_table": self.vectorize_target_train
-        })
-        exec_tasks = od({
-            "+compute_stats": od({
-                "_parallel": True,
-                # "+whole": od(self.comp_stats_task, **{"source": source}),
-                "+train": od(self.comp_stats_task, **{"source": source_train}),
-                "+test": od(self.comp_stats_task, **{"source": source_test})
-            }),
-            "+combine_train_test_stats": od({
-                "td>": str(self.combine_stats_path),
-                "engine": "presto",
-                "store_last_results": True
-            }),
-            "+execute": od({
-                "_parallel": True,
-                "+train": _exec_train_task,
-                "+test": od(_exec_train_task,
-                            **{"source": source_test,
-                               "create_table": self.vectorize_target_test})
-            })
-        })
-
-        return exec_tasks
-
-    def dump_pipeline(self, config_file: str, dest_file: str = None, overwrite: bool = False) -> str:
-        od = OrderedDict
-
-        with open(config_file, "r") as f:
-            config = yaml.load(f)
-
-        source = config['source']
-        dbname = config['dbname']
-
-        id_col = config['id_column']
-        target_col = config['target_column']
-        train_sample_rate = config["train_sample_rate"]
-
-        columns = []
-        numerical_columns = []
-        categorical_columns = []
-        imputed_columns = []
-        imputation_clauses = []
-        normalized_columns = []
-        normalization_clauses = []
-
+        Parameters
+        ----------
+        config : :obj:`Dict`
+            Configuration dictionary including numerical_columns and categorical_columns key.
+        Returns
+        -------
+        None
+        """
         for column_type in ["numerical_columns", "categorical_columns"]:
             for cols in config.get(column_type, []):
                 _columns = cols["columns"]
-                columns.extend(_columns)
+                self.columns.extend(_columns)
                 if column_type == "numerical_columns":
-                    numerical_columns.extend(cols["columns"])
+                    self.numerical_columns.extend(cols["columns"])
                 elif column_type == "categorical_columns":
-                    categorical_columns.extend(cols["columns"])
+                    self.categorical_columns.extend(cols["columns"])
 
                 if cols.get("transformer"):
                     if cols['transformer'].get('imputer'):
-                        imputed_columns.extend(_columns)
+                        self.imputed_columns.extend(_columns)
                         _opt = cols['transformer']['imputer']
                         imp = Imputer(_opt['strategy'],
                                       _opt.get('phase'),
                                       _opt.get('fill_value'),
                                       column_type == "categorical_columns")
-                        imputation_clauses.extend([imp.transform(_columns)])
+                        self.imputation_clauses.extend([imp.transform(_columns)])
+                        imp_whole = Imputer(_opt['strategy'],
+                                            None,
+                                            _opt.get('fill_value'),
+                                            column_type == "categorical_columns")
+                        self.imputation_clauses_whole.extend([imp_whole.transform(_columns)])
 
                     if cols['transformer'].get('normalizer'):
-                        normalized_columns.extend(_columns)
+                        self.normalized_columns.extend(_columns)
                         _opt = cols['transformer']['normalizer']
                         norm = Normalizer(_opt['strategy'], _opt.get('phase'))
-                        normalization_clauses.extend([norm.transform(_columns)])
+                        self.normalization_clauses.extend([norm.transform(_columns)])
+                        norm_whole = Normalizer(_opt['strategy'], None)
+                        self.normalization_clauses_whole.extend([norm_whole.transform(_columns)])
 
-        workflow = od()
-        export = od()
-        export["!include"] = "config/params.yml"
-        export["source"] = source
-        export["td"] = {"database": dbname, "engine": "hive", "train_sample_rate": train_sample_rate}
-        workflow["_export"] = export
-
-        query_dir = Path(config.get("query_dir", "queries"))
-
-        if overwrite:
-            shutil.rmtree(query_dir)
-
+    def _build_shuffle_and_split_task(
+            self,
+            stratify: Optional[bool] = None) -> OrderedDict:
         preparation = od()
 
-        stratify = config.get("stratify")
         shuffle_query = shuffle(
-            columns, target_column=target_col, id_column=id_col, stratify=stratify, class_label=target_col)
-        shuffle_path = query_dir / "shuffle.sql"
+            self.columns, target_column=self.target_column, id_column=self.id_column, stratify=stratify)
+        shuffle_path = self.query_dir / "shuffle.sql"
         self.save_query(shuffle_path, shuffle_query)
 
         preparation["+shuffle"] = od({
@@ -146,8 +108,8 @@ class Pipeline(object):
         })
 
         train_query, test_query = train_test_split(stratify=stratify)
-        split_train_path = query_dir / "split_train.sql"
-        split_test_path = query_dir / "split_test.sql"
+        split_train_path = self.query_dir / "split_train.sql"
+        split_test_path = self.query_dir / "split_test.sql"
         self.save_query(split_train_path, train_query)
         self.save_query(split_test_path, test_query)
 
@@ -165,17 +127,219 @@ class Pipeline(object):
             })
         })
 
-        do_imputation = len(imputation_clauses) > 0
-        do_normalization = len(normalization_clauses) > 0
+        return preparation
 
-        self.vectorize_target_train = "{}_train".format(source)
-        self.vectorize_target_test = "{}_test".format(source)
+    def _build_task_with_stats(
+            self,
+            query_basename: str,
+            source: str,
+            source_whole: Optional[str],
+            output_prefix: str,
+            target_columns: List[str],
+            target_clauses: List[str],
+            target_clauses_whole: Optional[List[str]],
+            hive: Optional[bool] = None) -> Tuple[OrderedDict, str, str]:
+
+        query_path = str(self.query_dir / f"{query_basename}.sql")
+        query_path_whole = str(self.query_dir / f"{query_basename}_whole.sql")
+        complement_columns = list(set(self.columns) - set(target_columns))
+        _target_clauses = target_clauses.copy()
+        _target_clauses.extend(complement_columns)
+        _target_clauses_whole = target_clauses_whole.copy()
+        _target_clauses_whole.extend(complement_columns)
+
+        transform_query = build_query(
+            [self.id_column, self.target_column] + _target_clauses, "${source}")
+        transform_query_whole = build_query(
+            [self.id_column, self.target_column] + _target_clauses_whole, "${source}")
+
+        self.save_query(query_path, transform_query)
+        self.save_query(query_path_whole, transform_query_whole)
+
+        source_train = f"{source}_train"
+        source_test = f"{source}_test"
+        vectorize_target_train = f"{output_prefix}_train"
+        vectorize_target_test = f"{output_prefix}_test"
+
+        _exec_train_task = od({
+            "td>": query_path,
+            "engine": "hive" if hive else "presto",
+            "source": source_train,
+            "create_table": vectorize_target_train
+        })
+        exec_tasks = od({
+            "+compute_stats": od({
+                "_parallel": True,
+                "+whole": od(self.comp_stats_task, **{"source": source_whole}),
+                "+train": od(self.comp_stats_task, **{"source": source_train}),
+                "+test": od(self.comp_stats_task, **{"source": source_test})
+            }),
+            "+combine_train_test_stats": od({
+                "td>": str(self.combine_stats_path),
+                "engine": "presto",
+                "store_last_results": True
+            }),
+            "+execute": od({
+                "_parallel": True,
+                "+whole": od(_exec_train_task,
+                             **{"td>": query_path_whole,
+                                "source": source_whole,
+                                "create_table": output_prefix}),
+                "+train": _exec_train_task,
+                "+test": od(_exec_train_task,
+                            **{"source": source_test,
+                               "create_table": vectorize_target_test})
+            })
+        })
+
+        return exec_tasks, vectorize_target_train, vectorize_target_test
+
+    def _build_vectorize_task(
+            self,
+            conf: Dict[str, Any],
+            source: str,
+            source_train: str,
+            source_test: str) -> Tuple[OrderedDict, str, str]:
+
+        train_table = conf.pop("train_table", "train")
+        test_table = conf.pop("test_table", "test")
+        whole_table = conf.pop("whole_table", "whole")
+
+        vect_default_opt = {"categorical_columns": self.categorical_columns,
+                            "numerical_columns": self.numerical_columns,
+                            "id_column": self.id_column}
+        vectorize_query = vectorize("${source}", self.target_column, **dict(vect_default_opt, **conf))
+        vectorize_path = self.query_dir / "vectorize.sql"
+        self.save_query(vectorize_path, vectorize_query)
+
+        vectorize_task = od({
+            "_parallel": True,
+            "+whole": od({
+                "td>": str(vectorize_path),
+                "source": source,
+                "create_table": whole_table
+            }),
+            "+train": od({
+                "td>": str(vectorize_path),
+                "source": source_train,
+                "create_table": train_table
+            }),
+            "+test": od({
+                "td>": str(vectorize_path),
+                "source": source_test,
+                "create_table": test_table
+            })
+        })
+
+        return vectorize_task, train_table, test_table
+
+    def _build_train_task(
+            self,
+            config: Dict[str, Any],
+            mod: object,
+            train_table: str) -> OrderedDict:
+
+        func_name = config.pop('name')
+        train_func = getattr(mod, func_name)
+
+        if func_name == 'train_randomforest_classifier' and config.pop('guess_attrs', None):
+            from .model import extract_attrs
+            _opt = config.get('option', '')
+            _opt += ' ' + extract_attrs(self.categorical_columns, self.numerical_columns)
+            config['option'] = _opt
+
+        model_table = config.pop('model_table', "model")
+        train_query = train_func(**dict(config, **{"target": self.target_column}))
+        _query_path = self.query_dir / f"{func_name}.sql"
+        self.save_query(_query_path, train_query)
+
+        return od({
+            "td>": str(_query_path),
+            "source": train_table,
+            "create_table": model_table,
+        })
+
+    def _build_predict_and_eval_task(
+            self,
+            config: OrderedDict,
+            mod: object,
+            pred_idx: int,
+            test_table: str,
+            metrics: List[str],
+            multiple_predictors: bool = False) -> OrderedDict:
+
+        func_name = config.pop('name')
+        pred_func = getattr(mod, func_name)
+
+        default_table = "prediction" if multiple_predictors else f"prediction_{pred_idx}"
+        predict_table = config.pop("output_table", default_table)
+        test_table = config.pop("target_table", test_table)
+        model_table = config.pop("model_table", "model")
+
+        predict_query, predicted_col = pred_func(**dict(config, **{"id_column": self.id_column}))
+        _query_path = self.query_dir / f"{func_name}.sql"
+        self.save_query(_query_path, predict_query)
+
+        acc_template = "{metric}: ${{td.last_results.{metric}}}"
+        acc_str = "\t".join(acc_template.format_map({"metric": metric}) for metric in metrics)
+
+        return od({
+            "+exec_predict": od({
+                "td>": str(_query_path),
+                "target_table": test_table,
+                "create_table": predict_table,
+                "model_table": model_table
+            }),
+            "+evaluate": od({
+                "td>": str(self.query_dir / "evaluate.sql"),
+                "actual": test_table,
+                "predicted_table": predict_table,
+                "predicted_column": predicted_col,
+                "store_last_results": True
+            }),
+            "+show_accuracy": {"echo>": acc_str}
+        })
+
+    def dump_pipeline(self, config_file: str, dest_file: str = None, overwrite: bool = False) -> None:
+        with open(config_file, "r") as f:
+            config = yaml.load(f)
+
+        source = config['source']
+        dbname = config['dbname']
+
+        self.id_column = config['id_column']
+        self.target_column = config['target_column']
+        train_sample_rate = config["train_sample_rate"]
+
+        # Extract column related information.
+        self._set_columns(config)
+
+        workflow = od()
+        export = od()
+        export["!include"] = "config/params.yml"
+        export["source"] = source
+        export["td"] = {"database": dbname, "engine": "hive", "train_sample_rate": train_sample_rate}
+        workflow["_export"] = export
+
+        self.query_dir = Path(config.get("query_dir", "queries"))
+
+        if overwrite:
+            shutil.rmtree(self.query_dir)
+
+        preparation = self._build_shuffle_and_split_task(stratify=config.get("stratify"))
+
+        do_imputation = len(self.imputation_clauses) > 0
+        do_normalization = len(self.normalization_clauses) > 0
+
+        vectorize_target_train = f"{source}_train"
+        vectorize_target_test = f"{source}_test"
+        vectorize_target_whole = f"{source}_shuffled"
 
         if do_imputation or do_normalization:
-            stats_query = compute_stats("${source}", numerical_columns)
-            combined_stats = combine_train_test_stats("${source}", numerical_columns)
-            stats_path = query_dir / "stats.sql"
-            self.combine_stats_path = query_dir / "combine_stats.sql"
+            stats_query = compute_stats("${source}", self.numerical_columns)
+            combined_stats = combine_train_test_stats("${source}", self.numerical_columns)
+            stats_path = self.query_dir / "stats.sql"
+            self.combine_stats_path = self.query_dir / "combine_stats.sql"
             self.save_query(stats_path, stats_query)
             self.save_query(self.combine_stats_path, combined_stats)
 
@@ -186,52 +350,28 @@ class Pipeline(object):
                 "create_table": "${source}_stats"})
 
         if do_imputation:
-            non_imputed_columns = list(set(columns) - set(imputed_columns))
-            imputation_clauses.extend(non_imputed_columns)
-            imputation_query = build_query([id_col, target_col] + imputation_clauses, "${source}")
-            impute_path = query_dir / "impute.sql"
-            self.save_query(impute_path, imputation_query)
-
-            preparation["+imputation"] = self._build_task_with_stats(
-                impute_path, source, "{}_imputed".format(source))
+            output_prefix = f"{source}_imputed"
+            preparation["+imputation"], vectorize_target_train, vectorize_target_test = self._build_task_with_stats(
+                query_basename="impute", source=source, source_whole=vectorize_target_whole,
+                output_prefix=output_prefix,
+                target_columns=self.imputed_columns, target_clauses=self.imputation_clauses,
+                target_clauses_whole=self.imputation_clauses_whole)
+            vectorize_target_whole = output_prefix
 
         if do_normalization:
-            non_normalized_columns = list(set(columns) - set(normalized_columns))
-            normalization_clauses.extend(non_normalized_columns)
-            normalization_query = build_query([id_col, target_col] + normalization_clauses, "${source}")
-            normalize_path = query_dir / "normalize.sql"
-            self.save_query(normalize_path, normalization_query)
-
-            preparation["+normalization"] = self._build_task_with_stats(
-                normalize_path, "{}_imputed".format(source), "{}_norm".format(source), hive=True)
+            output_prefix = f"{source}_norm"
+            preparation["+normalization"], vectorize_target_train, vectorize_target_test = self._build_task_with_stats(
+                query_basename="normalize", source=f"{source}_imputed", source_whole=vectorize_target_whole,
+                output_prefix=output_prefix,
+                target_columns=self.normalized_columns, target_clauses=self.normalization_clauses,
+                target_clauses_whole=self.normalization_clauses_whole, hive=True)
+            vectorize_target_whole = output_prefix
 
         workflow["+preparation"] = preparation
 
-        vect_conf = config.get("vectorizer", {})
-        train_table = vect_conf.pop("train_table", "train")
-        test_table = vect_conf.pop("test_table", "test")
-
-        vect_default_opt = {"categorical_columns": categorical_columns,
-                            "numerical_columns": numerical_columns,
-                            "id_column": id_col}
-        vectorize_query = vectorize("${source}", target_col, **dict(vect_default_opt, **vect_conf))
-        vectorize_path = query_dir / "vectorize.sql"
-        self.save_query(vectorize_path, vectorize_query)
-
-        vectorize_task = od({
-            "_parallel": True,
-            "+train": od({
-                "td>": str(vectorize_path),
-                "source": self.vectorize_target_train,
-                "create_table": train_table
-            }),
-            "+test": od({
-                "td>": str(vectorize_path),
-                "source": self.vectorize_target_test,
-                "create_table": test_table
-            })
-        })
-        workflow["+vectorization"] = vectorize_task
+        workflow["+vectorization"], train_table, test_table = self._build_vectorize_task(
+            config.get("vectorizer", {}), source=vectorize_target_whole,
+            source_train=vectorize_target_train, source_test=vectorize_target_test)
 
         # Preparation for loading train/predict functions dynamically
         __import__('molehill.model')
@@ -242,26 +382,7 @@ class Pipeline(object):
         train_idx = 0
         train_tasks = od()
         for trainer in config.get('trainer', {}):
-            func_name = trainer.pop('name')
-            train_func = getattr(mod, func_name)
-
-            if func_name == 'train_randomforest_classifier' and trainer.pop('guess_attrs', None):
-                from .model import extract_attrs
-                _opt = trainer.get('option', '')
-                _opt += ' ' + extract_attrs(categorical_columns, numerical_columns)
-                trainer['option'] = _opt
-
-            model_table = trainer.pop('model_table', "model")
-            train_query = train_func(**dict(trainer, **{"target": target_col}))
-            _query_path = query_dir / "{}.sql".format(func_name)
-            self.save_query(_query_path, train_query)
-
-            train_tasks["+train_{}".format(train_idx)] = od(
-                {
-                    "td>": str(_query_path),
-                    "source": train_table,
-                    "create_table": model_table,
-                })
+            train_tasks[f"+train_{train_idx}"] = self._build_train_task(trainer, mod, train_table)
             train_idx += 1
 
         if train_idx > 1:
@@ -272,11 +393,11 @@ class Pipeline(object):
         # Save evaluation query before prediction
         metrics = config['evaluator']['metrics']
         evaluate_query = evaluate(metrics,
-                                  target_column=target_col,
+                                  target_column=self.target_column,
                                   target_table="${actual}",
                                   prediction_table="${predicted_table}",
                                   predicted_column="${predicted_column}")
-        self.save_query(query_dir / "evaluate.sql", evaluate_query)
+        self.save_query(self.query_dir / "evaluate.sql", evaluate_query)
 
         pred_idx = 0
         pred_tasks = od()
@@ -284,37 +405,8 @@ class Pipeline(object):
         predictors = config.get('predictor', {})
 
         for predictor in predictors:
-            func_name = predictor.pop('name')
-            pred_func = getattr(mod, func_name)
-
-            default_table = "prediction" if len(predictors) == 1 else "prediction_{}".format(pred_idx)
-            predict_table = predictor.pop("output_table", default_table)
-            test_table = predictor.pop("target_table", test_table)
-            model_table = predictor.pop("model_table", "model")
-
-            predict_query, predicted_col = pred_func(**dict(predictor, **{"id_column": id_col}))
-            _query_path = query_dir / "{}.sql".format(func_name)
-            self.save_query(_query_path, predict_query)
-
-            acc_template = "{metric}: ${{td.last_results.{metric}}}"
-            acc_str = "\t".join(acc_template.format_map({"metric": metric}) for metric in metrics)
-
-            pred_tasks["+seq_{}".format(pred_idx)] = od({
-                "+exec_predict": od({
-                    "td>": str(_query_path),
-                    "target_table": test_table,
-                    "create_table": predict_table,
-                    "model_table": model_table
-                }),
-                "+evaluate": od({
-                    "td>": str(query_dir / "evaluate.sql"),
-                    "actual": test_table,
-                    "predicted_table": predict_table,
-                    "predicted_column": predicted_col,
-                    "store_last_results": True
-                }),
-                "+show_accuracy": {"echo>": acc_str}
-            })
+            pred_tasks[f"+seq_{pred_idx}"] = self._build_predict_and_eval_task(
+                predictor, mod, pred_idx, test_table, metrics, len(predictors) == 1)
 
             pred_idx += 1
 
@@ -324,9 +416,9 @@ class Pipeline(object):
         main["+predict"] = pred_tasks
         workflow["+main"] = main
 
-        self.workflow_path = dest_file if dest_file else "{}.dig".format(source)
+        self.workflow_path = dest_file if dest_file else f"{source}.dig"
 
         if not overwrite and Path(dest_file).exists():
-            raise FileExistsError("{} already exists".format(self.workflow_path))
+            raise FileExistsError(f"{self.workflow_path} already exists")
 
         self.save_query(self.workflow_path, yaml.dump(workflow, default_flow_style=False))

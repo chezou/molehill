@@ -49,10 +49,10 @@ def build_query(select_clauses: List[str],
     _with_clauses = []
 
     for k, v in with_clauses.items():
-        tmp = """\
-with {view} as (
-{select}
-)""".format(view=k, select=textwrap.indent(v, "  "))
+        tmp = f"""\
+with {k} as (
+{textwrap.indent(v, "  ")}
+)"""
         _with_clauses.append(tmp)
 
     if len(with_clauses) > 0:
@@ -63,9 +63,9 @@ with {view} as (
     _query += "\n, ".join(select_clauses)
     query += textwrap.indent(_query, "  ")
 
-    query += textwrap.dedent("""
+    query += textwrap.dedent(f"""
     from
-      {source}""").format_map({"source": source})
+      {source}""")
 
     if condition:
         query += "\n" + condition
