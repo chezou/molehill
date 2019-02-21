@@ -156,6 +156,7 @@ def _build_prediction_query(
     -- DIGDAG_INSERT_LINE
     select 
       {id},
+      predicted.label
       predicted.probabilities[1] as probability
     from
       ensembled
