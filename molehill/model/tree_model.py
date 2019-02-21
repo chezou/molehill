@@ -11,7 +11,6 @@ def extract_attrs(categorical_columns: List[str], numerical_columns: List[str]) 
 
 def _base_train_query(
         func_name: str,
-        features: str,
         source_table: str,
         target: str,
         option: str,
@@ -21,7 +20,6 @@ def _base_train_query(
     with_clause = base_model(
         func_name,
         None,
-        features,
         target,
         source_table,
         option,
@@ -38,7 +36,6 @@ def _base_train_query(
 
 
 def train_randomforest_classifier(
-        features: str = "features",
         source_table: str = "${source}",
         target: str = "label",
         option: Optional[str] = None,
@@ -49,8 +46,6 @@ def train_randomforest_classifier(
     Parameters
     -----------
 
-    features :  :obj:`str`
-        Feature column name. Default: "features"
     source_table : :obj:`str`
         Source table name. Default: "training"
     target : :obj:`str`
@@ -70,7 +65,6 @@ def train_randomforest_classifier(
 
     return _base_train_query(
         "train_randomforest_classifier",
-        features,
         source_table,
         target,
         option,
@@ -79,7 +73,6 @@ def train_randomforest_classifier(
 
 
 def train_randomforest_regressor(
-        features: str = "features",
         source_table: str = "${source}",
         target: str = "label",
         option: Optional[str] = None,
@@ -90,8 +83,6 @@ def train_randomforest_regressor(
     Parameters
     -----------
 
-    features :  :obj:`str`
-        Feature column name. Default: "features"
     target : :obj:`str`
         Target column for prediction
     source_table : :obj:`str`
@@ -111,7 +102,6 @@ def train_randomforest_regressor(
 
     return _base_train_query(
         "train_randomforest_regressor",
-        features,
         source_table,
         target,
         option,
@@ -156,7 +146,7 @@ def _build_prediction_query(
     -- DIGDAG_INSERT_LINE
     select 
       {id},
-      predicted.label
+      predicted.label,
       predicted.probabilities[1] as probability
     from
       ensembled
@@ -205,7 +195,7 @@ def predict_randomforest_regressor(
         model_table: str = "${model_table}",
         bias: Optional[bool] = None,
         hashing: Optional[bool] = None) -> Tuple[str, str]:
-    """Build prediction query for randomforest regressor.
+    """Build prediction query for randomforest_regressor.
 
     Parameters
     ----------
