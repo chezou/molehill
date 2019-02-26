@@ -324,7 +324,7 @@ class Pipeline(object):
         self.query_dir = Path(config.get("query_dir", "queries"))
 
         if overwrite:
-            shutil.rmtree(self.query_dir)
+            shutil.rmtree(self.query_dir, ignore_errors=True)
 
         preparation = self._build_shuffle_and_split_task(stratify=config.get("stratify"))
 
