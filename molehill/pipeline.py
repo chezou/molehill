@@ -318,7 +318,8 @@ class Pipeline(object):
         export = od()
         export["!include"] = "config/params.yml"
         export["source"] = source
-        export["td"] = {"database": dbname, "engine": "hive", "train_sample_rate": train_sample_rate}
+        export["train_sample_rate"] = train_sample_rate
+        export["td"] = {"database": dbname, "engine": "hive"}
         workflow["_export"] = export
 
         self.query_dir = Path(config.get("query_dir", "queries"))
