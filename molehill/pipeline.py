@@ -316,7 +316,8 @@ class Pipeline(object):
 
         workflow = od()
         export = od()
-        export["!include"] = "config/params.yml"
+        # Since digdag "!include" seems to be a custom YAML tag, and can't find a way to dump with PyYAML...
+        # export["!include"] = "config/params.yml"
         export["source"] = source
         export["train_sample_rate"] = train_sample_rate
         export["td"] = {"database": dbname, "engine": "hive"}
