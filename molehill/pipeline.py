@@ -301,6 +301,22 @@ class Pipeline(object):
         })
 
     def dump_pipeline(self, config_file: str, dest_file: str = None, overwrite: bool = False) -> None:
+        """Dump an ML pipeline, Hivemall SQLs and digdag workflows, from config yaml.
+
+        Parameters
+        ----------
+        config_file : str
+            Config file path.
+        dest_file : str
+            Destination of digdag workflow. Query directory should be written in a config file.
+        overwrite : bool
+            Flag whether overwrite output files or not. This option will remove query directory.
+
+        Returns
+        -------
+        None
+
+        """
         with open(config_file, "r") as f:
             config = yaml.load(f)
 
