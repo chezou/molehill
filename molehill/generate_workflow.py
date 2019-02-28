@@ -14,10 +14,10 @@ def main():
 
     args = parser.parse_args()
 
-    print("Start converting: {}".format(args.yaml))
+    print(f"Start converting: {args.yaml}")
     pipe = Pipeline()
     pipe.dump_pipeline(args.yaml, args.dest, overwrite=args.overwrite)
-    print("Finish dump file: {}".format(pipe.workflow_path))
+    print(f"Finish dump file: {pipe.workflow_path}")
 
 
 if __name__ == '__main__':

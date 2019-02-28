@@ -63,7 +63,7 @@ def vectorize(
 
     feature_query = "feature_hashing(\n{}\n)".format(textwrap.indent(feature_query, "  ")) if hashing else feature_query
     feature_query = "add_bias(\n{}\n)".format(textwrap.indent(feature_query, "  ")) if bias else feature_query
-    feature_query += " as {}".format(features)
+    feature_query += f" as {features}"
 
     query = build_query(
         [id_column, feature_query, target_column],

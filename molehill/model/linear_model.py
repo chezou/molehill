@@ -153,10 +153,10 @@ def predict_classifier(
 
     if sigmoid:
         predicted_column = "probability"
-        _total_weight = f"sigmoid(sum(m1.weight * t1.value)) as probability"
+        _total_weight = "sigmoid(sum(m1.weight * t1.value)) as probability"
     else:
         predicted_column = "total_weight"
-        _total_weight = f"sum(m1.weight * t1.value) as total_weight"
+        _total_weight = "sum(m1.weight * t1.value) as total_weight"
 
     return _build_prediction_query(
         _total_weight, target_table, id_column, model_table, bias=bias, hashing=hashing

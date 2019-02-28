@@ -68,7 +68,7 @@ with {k} as (
       {source}""")
 
     if condition:
-        query += "\n" + condition
+        query += f"\n{condition}"
 
     if not without_semicolon or not len(with_clauses) == 0:
         query += "\n;\n"

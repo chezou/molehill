@@ -48,7 +48,7 @@ def base_model(function: str,
       , {target}
     """.format_map({"function": function, "features": _features, "target": target}))
     select_clause += f"  , '{option}'\n" if option else ""
-    _as = f" as ({storage_format})" if storage_format else ''
+    _as = f" as ({storage_format})" if storage_format else ""
     select_clause += f"){_as}"
 
     return build_query([select_clause], source_table, without_semicolon=with_clause)

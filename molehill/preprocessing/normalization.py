@@ -67,7 +67,7 @@ class Normalizer:
             )
 
         else:
-            raise ValueError("Unknown strategy: {}.".format(self.strategy))
+            raise ValueError(f"Unknown strategy: {self.strategy}")
 
         return self._build_partial_query(_template, columns)
 
@@ -97,6 +97,6 @@ class Normalizer:
             )
 
         else:
-            raise ValueError("Unknown strategy: {}.".format(self.strategy))
+            raise ValueError(f"Unknown strategy: {self.strategy}")
 
         return self._build_partial_query(_template, columns)
