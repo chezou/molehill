@@ -41,7 +41,7 @@ def shuffle(columns: List[str],
     if stratify:
         _columns.extend([
             f"count(1) over (partition by {target_column}) as per_label_count",
-            f"rank() over (partition by {target_column} order by rand({rnd_seed}) as rank_in_label"
+            f"rank() over (partition by {target_column} order by rand({rnd_seed})) as rank_in_label"
         ])
     else:
         _columns.extend([f"rand({rnd_seed}) as rnd"])

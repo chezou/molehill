@@ -113,7 +113,7 @@ def _build_prediction_query(
         target_table: str,
         id_column: str,
         model_table: str,
-        classification: Optional[bool],
+        classification: Optional[bool] = None,
         bias: Optional[bool] = None,
         hashing: Optional[bool] = None) -> str:
 
@@ -128,14 +128,14 @@ def _build_prediction_query(
         rf_ensemble(predicted.value, predicted.posteriori, model_weight) as predicted
       from (
         select
-          t.{id}, 
+          t.{id},
           p.model_weight,
           tree_predict(p.model_id, p.model, {features}{classification}) as predicted
         from (
-          select 
+          select
             model_id, model_weight, model
-          from 
-            {model_table} 
+          from
+            {model_table}
           DISTRIBUTE BY rand(1)
         ) p
         left outer join {target_table} t
@@ -144,14 +144,15 @@ def _build_prediction_query(
         {id}
     )
     -- DIGDAG_INSERT_LINE
-    select 
+    select
       {id},
       predicted.label,
       predicted.probabilities[1] as probability
     from
       ensembled
-    ;""").format_map({"id": id_column, "model_table": model_table, "target_table": target_table, "features": _features,
-                      "classification": ' , "-classification"' if classification else ''})
+    ;
+    """).format_map({"id": id_column, "model_table": model_table, "target_table": target_table, "features": _features,
+                    "classification": ', "-classification"' if classification else ''})
 
     return query
 

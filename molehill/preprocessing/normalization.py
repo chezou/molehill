@@ -10,7 +10,7 @@ class Normalizer:
     --------
     >>> from molehill.utils import build_query
     >>> numeric_columns = ["age", "fare"]
-    >>> numeric_normalizer = Normalizer("median", "train")
+    >>> numeric_normalizer = Normalizer("minmax", "train")
     >>>
     >>> # For transform
     >>> transform_clause = numeric_normalizer.transform(numeric_columns)
@@ -40,19 +40,15 @@ class Normalizer:
 
     def transform(self, columns: List[str]) -> str:
         if self.strategy == "log1p":
-            _template = textwrap.dedent(
-                """\
-            ln({column} + 1) as {column}
-                """
-            )
+            _template = "ln({column} + 1) as {column}"
 
         elif self.strategy == "minmax":
             _template = textwrap.dedent(
                 """\
             rescale(
-                {column},
-                ${{td.last_results.{column}_min{phase}}},
-                ${{td.last_results.{column}_max{phase}}}
+              {column}
+              , ${{td.last_results.{column}_min{phase}}}
+              , ${{td.last_results.{column}_max{phase}}}
             ) as {column}"""
             )
 
@@ -60,9 +56,9 @@ class Normalizer:
             _template = textwrap.dedent(
                 """\
             zscore(
-                {column},
-                ${{td.last_results.{column}_mean{phase}}},
-                ${{td.last_results.{column}_std{phase}}}
+              {column}
+              , ${{td.last_results.{column}_mean{phase}}}
+              , ${{td.last_results.{column}_std{phase}}}
             ) as {column}"""
             )
 
@@ -75,25 +71,19 @@ class Normalizer:
         _query = ""
 
         if self.strategy == "log1p":
-            _template = textwrap.dedent(
-                """\
-            ln({column}) - 1 as {column}
-                """
-            )
+            _template = "exp({column}) - 1 as {column}"
 
         elif self.strategy == "minmax":
             _template = textwrap.dedent(
                 """\
             {column} * (${{td.last_results.{column}_max{phase}}} - ${{td.last_results.{column}_min{phase}}})
-              + ${{td.last_results.{column}_min{phase}}}
-            """
+              + ${{td.last_results.{column}_min{phase}}} as {column}"""
             )
 
         elif self.strategy == "standardize":
             _template = textwrap.dedent(
                 """\
-            {column} * ${{td.last_results.{column}_std{phase}}} + ${{td.last_results.{column}_mean{phase}}}
-            """
+            {column} * ${{td.last_results.{column}_std{phase}}} + ${{td.last_results.{column}_mean{phase}}} as {column}"""
             )
 
         else:
