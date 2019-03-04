@@ -1,5 +1,7 @@
 # molehill
 
+[![CircleCI](https://circleci.com/gh/chezou/molehill.svg?style=svg)](https://circleci.com/gh/chezou/molehill)
+
 Combine Apache Hivemall(incubating) and digdag together.
 
 Generate Hivemall queries and Digdag workflow for TreasureData from YAML file.
@@ -20,7 +22,7 @@ $ td wf start proj-name titanic --session now
 
 ## Examples
 
-Example yaml files can be seen as follows:
+Example YAML files can be found as follows:
 
 - [titanic_pipeline.yml](./resources/titanic_pipeline.yml)
   - Example config file for [Titanic](https://github.com/amueller/scipy-2017-sklearn/blob/master/notebooks/datasets/titanic3.csv) survival prediction with Logistic Regression.
