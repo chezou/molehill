@@ -4,8 +4,8 @@ from .base import base_model
 
 
 def train_classifier(
-        target: str = "target",
         source_table: str = "${source}",
+        target: str = "target",
         option: Optional[str] = None,
         bias: Optional[bool] = None,
         hashing: Optional[bool] = None) -> str:
@@ -14,10 +14,10 @@ def train_classifier(
     Parameters
     -----------
 
-    target : :obj:`str`
-        Target column for prediction. Default: "target"
     source_table : :obj:`str`
         Source table name. Default: "training"
+    target : :obj:`str`
+        Target column for prediction. Default: "target"
     option : :obj:`str`
         An option string for specific algorithm.
     bias : bool
@@ -153,10 +153,10 @@ def predict_classifier(
 
     if sigmoid:
         predicted_column = "probability"
-        _total_weight = "sigmoid(sum(m1.weight * t1.value)) as probability"
+        _total_weight = f"sigmoid(sum(m1.weight * t1.value)) as {predicted_column}"
     else:
         predicted_column = "total_weight"
-        _total_weight = "sum(m1.weight * t1.value) as total_weight"
+        _total_weight = f"sum(m1.weight * t1.value) as {predicted_column}"
 
     return _build_prediction_query(
         _total_weight, target_table, id_column, model_table, bias=bias, hashing=hashing

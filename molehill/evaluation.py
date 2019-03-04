@@ -3,7 +3,7 @@ from typing import Union, List
 from .utils import build_query
 
 
-KNOWN_METRICS = {"logloss", "auc", "mse", "rmse", "mse", "mae", "r2",
+KNOWN_METRICS = {"logloss", "auc", "mse", "rmse", "mse", "mae", "r2", "fmeasure",
                  "average_precision", "hitrate", "ndcg", "precision_at", "recall_at"}
 
 

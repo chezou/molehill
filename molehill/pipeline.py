@@ -16,7 +16,12 @@ def _represent_odict(dumper, instance):
     return dumper.represent_mapping('tag:yaml.org,2002:map', instance.items())
 
 
+def construct_odict(loader, node):
+    return OrderedDict(loader.construct_pairs(node))
+
+
 yaml.add_representer(OrderedDict, _represent_odict)
+yaml.add_constructor('tag:yaml.org,2002:map', construct_odict)
 
 od = OrderedDict
 
@@ -142,7 +147,10 @@ class Pipeline(object):
 
         query_path = str(self.query_dir / f"{query_basename}.sql")
         query_path_whole = str(self.query_dir / f"{query_basename}_whole.sql")
-        complement_columns = list(set(self.columns) - set(target_columns))
+        complement_columns = []
+        for _col in self.columns:
+            if _col not in target_columns:
+                complement_columns.append(_col)
         _target_clauses = target_clauses.copy()
         _target_clauses.extend(complement_columns)
         _target_clauses_whole = target_clauses_whole.copy()
@@ -300,14 +308,18 @@ class Pipeline(object):
             "+show_accuracy": {"echo>": acc_str}
         })
 
-    def dump_pipeline(self, config_file: str, dest_file: str = None, overwrite: bool = False) -> None:
+    def dump_pipeline(
+            self,
+            config_file: str,
+            dest_file: str = None,
+            overwrite: bool = False) -> None:
         """Dump an ML pipeline, Hivemall SQLs and digdag workflows, from config yaml.
 
         Parameters
         ----------
-        config_file : str
+        config_file : :obj:`str`
             Config file path.
-        dest_file : str
+        dest_file : :obj:`str`
             Destination of digdag workflow. Query directory should be written in a config file.
         overwrite : bool
             Flag whether overwrite output files or not. This option will remove query directory.

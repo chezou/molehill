@@ -109,12 +109,12 @@ def _build_feature_array(
 
     _option = ""
     if len(_options) > 0:
-        _option = ", '{}'".format(' '.join(_options))
+        _option = ", '{}'\n".format(' '.join(_options))
 
     return "{func}_features(\n{query}\n{option})".format_map({
         "func": FEATURE_FUNC_MAP[ctype],
         "query": textwrap.indent(_query, "  "),
-        "option": _option
+        "option": textwrap.indent(_option, "  ")
     })
 
 

@@ -10,7 +10,7 @@ class Imputer:
     >>> from molehill.utils import build_query
     >>>
     >>> numeric_imputer = Imputer("median", "train")
-    >>> categorical_imputer = Imputer("constant", "train", "missing")
+    >>> categorical_imputer = Imputer("constant", "train", "missing", categorical=True)
     >>> numeric_columns = ["age", "fare"]
     >>> categorical_columns = ["embarked", "sex", "pclass"]
     >>> numeric_clause = numeric_imputer.transform(numeric_columns)

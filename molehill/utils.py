@@ -19,6 +19,8 @@ def build_query(select_clauses: List[str],
         Condition like where clause.
     without_semicolon : bool, optional
         Whether put semicolon to end of the query or not.
+    with_clauses : :obj:`dict`, optional
+        Key is a temporary table name and value is a with clause.
 
     Returns
     -------
