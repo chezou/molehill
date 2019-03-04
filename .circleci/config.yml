@@ -24,7 +24,8 @@ jobs:
             . venv/bin/activate
             mkdir test-reports
             pytest --junitxml=test-reports/junit.xml
-            pytest --cov=molehill --cov-report=html:test-reports
+            pytest --cov=molehill --cov-report=term-missing --cov-report=html tests
+            coverage html -d test-reports
       - store_test_results:
           path: test-reports
 
