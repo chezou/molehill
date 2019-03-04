@@ -13,7 +13,7 @@ jobs:
           command: |
             python3 -m venv venv
             . venv/bin/activate
-            pip isntall -r requirements.txt -c constraints.txt
+            pip install -r requirements.txt -c constraints.txt
       - save_cache:
           paths:
             - ./venv
