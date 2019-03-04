@@ -2,6 +2,7 @@
 source: titanic
 dbname: ml_tips
 train_sample_rate: 0.8
+scale_pos_weight: 2 # Multiply positive sample with this scale. This should be int.
 
 query_dir: queries
 

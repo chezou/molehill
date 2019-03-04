@@ -1,5 +1,5 @@
 import textwrap
-from typing import Optional
+from typing import Optional, Union
 from ..utils import build_query
 
 
@@ -10,7 +10,8 @@ def base_model(function: str,
                option: Optional[str] = None,
                bias: Optional[bool] = None,
                hashing: Optional[bool] = None,
-               with_clause: Optional[bool] = None) -> str:
+               with_clause: Optional[bool] = None,
+               scale_pos_weight: Optional[Union[int, str]] = None) -> str:
     """Build model query
 
     Parameters
@@ -32,6 +33,8 @@ def base_model(function: str,
         Execute feature hashing.
     with_clause : bool, optional
         Existence of with clause.
+    scale_pos_weight : int, optional
+        Scale for oversampling positive class.
 
     Returns
     --------
@@ -39,9 +42,27 @@ def base_model(function: str,
         Built query for training.
     """
 
+    _source_table = source_table
+    _with_clauses = {}
+    if scale_pos_weight:
+        _with_clause = build_query(
+            ["features", target],
+            source_table,
+            condition=f"where {target} = 0",
+            without_semicolon=True)
+        _with_clause += "\nunion all\n"
+        _with_clause += build_query(
+            [f"amplify(${{scale_pos_weight}}, features, {target}) as (features, {target})"],
+            source_table,
+            condition=f"where {target} = 1",
+            without_semicolon=True)
+        _source_table = "train_oversampling"
+        _with_clauses = {_source_table: _with_clause}
+
     _features = "features"
     _features = f"feature_hashing({_features})" if hashing else _features
     _features = f"add_bias({_features})" if bias else _features
+
     select_clause = textwrap.dedent("""\
     {function}(
       {features}
@@ -51,4 +72,4 @@ def base_model(function: str,
     _as = f" as ({storage_format})" if storage_format else ""
     select_clause += f"){_as}"
 
-    return build_query([select_clause], source_table, without_semicolon=with_clause)
+    return build_query([select_clause], _source_table, without_semicolon=with_clause, with_clauses=_with_clauses)

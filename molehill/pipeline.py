@@ -26,7 +26,7 @@ yaml.add_constructor('tag:yaml.org,2002:map', construct_odict)
 od = OrderedDict
 
 
-class Pipeline(object):
+class Pipeline:
     def __init__(self):
         self.comp_stats_task = None
         self.combine_stats_path = None
@@ -338,6 +338,7 @@ class Pipeline(object):
         self.id_column = config['id_column']
         self.target_column = config['target_column']
         train_sample_rate = config["train_sample_rate"]
+        scale_pos_weight = config.get("scale_pos_weight")
 
         # Extract column related information.
         self._set_columns(config)
@@ -348,6 +349,8 @@ class Pipeline(object):
         # export["!include"] = "config/params.yml"
         export["source"] = source
         export["train_sample_rate"] = train_sample_rate
+        if scale_pos_weight:
+            export["scale_pos_weight"] = scale_pos_weight
         export["td"] = {"database": dbname, "engine": "hive"}
         workflow["_export"] = export
 
@@ -412,6 +415,8 @@ class Pipeline(object):
         train_idx = 0
         train_tasks = od()
         for trainer in config.get('trainer', {}):
+            if scale_pos_weight:
+                trainer['scale_pos_weight'] = "${scale_pos_weight}"
             train_tasks[f"+train_{train_idx}"] = self._build_train_task(trainer, mod, train_table)
             train_idx += 1
 
@@ -435,6 +440,9 @@ class Pipeline(object):
         predictors = config.get('predictor', {})
 
         for predictor in predictors:
+            if scale_pos_weight:
+                predictor['scale_pos_weight'] = "${scale_pos_weight}"
+
             pred_tasks[f"+seq_{pred_idx}"] = self._build_predict_and_eval_task(
                 predictor, mod, pred_idx, test_table, metrics, len(predictors) == 1)
 

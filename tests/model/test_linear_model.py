@@ -2,8 +2,9 @@ from molehill.model import train_classifier, train_regressor
 from molehill.model import predict_classifier, predict_regressor
 
 
-def test_train_classifier():
-    ret_sql = """\
+class TestTrainClassifier:
+    def test_train_classifier(self):
+        ret_sql = """\
 select
   train_classifier(
     features
@@ -14,7 +15,79 @@ from
 ;
 """
 
-    assert train_classifier("src_tbl", "target_val") == ret_sql
+        assert train_classifier("src_tbl", "target_val") == ret_sql
+
+    def test_train_classifier_oversampling(self):
+        ret_sql = """\
+with train_oversampling as (
+  select
+    features
+    , target_val
+  from
+    src_tbl
+  where target_val = 0
+  union all
+  select
+    amplify(${scale_pos_weight}, features, target_val) as (features, target_val)
+  from
+    src_tbl
+  where target_val = 1
+)
+-- DIGDAG_INSERT_LINE
+select
+  train_classifier(
+    features
+    , target_val
+  ) as (feature, weight)
+from
+  train_oversampling
+;
+"""
+
+        assert train_classifier("src_tbl", "target_val", scale_pos_weight=2) == ret_sql
+
+    def test_train_classifier_bias(self):
+        ret_sql = """\
+select
+  train_classifier(
+    add_bias(features)
+    , target_val
+  ) as (feature, weight)
+from
+  src_tbl
+;
+"""
+
+        assert train_classifier("src_tbl", "target_val", bias=True) == ret_sql
+
+
+    def test_train_classifier_hashing(self):
+        ret_sql = """\
+select
+  train_classifier(
+    feature_hashing(features)
+    , target_val
+  ) as (feature, weight)
+from
+  src_tbl
+;
+"""
+
+        assert train_classifier("src_tbl", "target_val", hashing=True) == ret_sql
+
+    def test_train_classifier_bias_hashing(self):
+        ret_sql = """\
+select
+  train_classifier(
+    add_bias(feature_hashing(features))
+    , target_val
+  ) as (feature, weight)
+from
+  src_tbl
+;
+"""
+
+        assert train_classifier("src_tbl", "target_val", bias=True, hashing=True) == ret_sql
 
 
 def test_train_regressor():
@@ -32,7 +105,7 @@ from
     assert train_regressor("src_tbl", "target_val") == ret_sql
 
 
-class TestPredictClassifier(object):
+class TestPredictClassifier:
     def test_predict_classifier(self):
         ret_sql = """\
 with features_exploded as (
@@ -169,7 +242,7 @@ group by
         assert pred_col == "total_weight"
 
 
-class TestPredictRegressor(object):
+class TestPredictRegressor:
     def test_predict_regressor(self):
         ret_sql = """\
 with features_exploded as (

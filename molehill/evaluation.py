@@ -83,7 +83,7 @@ def evaluate(
             "(\n{}\n) t2".format(
                 textwrap.indent(build_query(
                     [select_clause],
-                    "{} p".format(prediction_table),
+                    f"{prediction_table} p",
                     cond,
                     without_semicolon=True
                 ), "  ")
@@ -101,4 +101,4 @@ def evaluate(
         join
           {test} t on (p.{id} = t.{id})""".format_map({"test": target_table, "id": id_column})
 
-        return build_query(evaluations, "{} p".format(prediction_table), textwrap.dedent(cond))
+        return build_query(evaluations, f"{prediction_table} p", textwrap.dedent(cond))

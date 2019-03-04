@@ -65,9 +65,9 @@ with {k} as (
     _query += "\n, ".join(select_clauses)
     query += textwrap.indent(_query, "  ")
 
-    query += textwrap.dedent(f"""
-    from
-      {source}""")
+    query += f"""
+from
+{textwrap.indent(source, '  ')}"""
 
     if condition:
         query += f"\n{condition}"
