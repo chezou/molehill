@@ -28,10 +28,16 @@ with train_oversampling as (
   where target_val = 0
   union all
   select
-    amplify(${scale_pos_weight}, features, target_val) as (features, target_val)
+    features
+    , target_val
   from
-    src_tbl
-  where target_val = 1
+    (
+      select
+        amplify(${scale_pos_weight}, features, target_val) as (features, target_val)
+      from
+        src_tbl
+      where target_val = 1
+    ) t0
 )
 -- DIGDAG_INSERT_LINE
 select

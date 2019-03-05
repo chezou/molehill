@@ -51,10 +51,15 @@ def base_model(function: str,
             condition=f"where {target} = 0",
             without_semicolon=True)
         _with_clause += "\nunion all\n"
-        _with_clause += build_query(
+
+        _oversample_query = build_query(
             [f"amplify(${{scale_pos_weight}}, features, {target}) as (features, {target})"],
             source_table,
             condition=f"where {target} = 1",
+            without_semicolon=True)
+        _with_clause += build_query(
+            ["features", target],
+            f"(\n{textwrap.indent(_oversample_query, '  ')}\n) t0",
             without_semicolon=True)
         _source_table = "train_oversampling"
         _with_clauses = {_source_table: _with_clause}

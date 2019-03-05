@@ -280,7 +280,8 @@ class Pipeline:
         return od({
             "td>": str(_query_path),
             "source": source,
-            "target_column": target_column
+            "target_column": target_column,
+            "store_last_results": True
         })
 
     def _build_predict_and_eval_task(
