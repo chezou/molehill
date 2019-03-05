@@ -11,12 +11,12 @@ def vectorize(
         target_column: str,
         categorical_columns: Optional[List[str]] = None,
         numerical_columns: Optional[List[str]] = None,
-        id_column: Optional[str] = "rowid",
-        features: Optional[str] = "features",
-        bias: Optional[bool] = None,
-        hashing: Optional[bool] = None,
-        emit_null: Optional[bool] = None,
-        force_value: Optional[bool] = None) -> str:
+        id_column: str = "rowid",
+        features: str = "features",
+        bias: bool = False,
+        hashing: bool = False,
+        emit_null: bool = False,
+        force_value: bool = False) -> str:
     """Build vectorization query before training or prediction.
 
     Parameters
@@ -29,19 +29,19 @@ def vectorize(
         A list of categorical column names.
     numerical_columns : :obj:`list` of :obj:`str`, optional
         A list of numerical column names.
-    id_column : :obj:`str`, optional
-        Id column name.
-    features : :obj:`str`, optional
-        Feature column name.
-    bias : bool, optional
-        Add bias for feature.
-    hashing : bool, optional
-        Execute feature hashing.
+    id_column : :obj:`str`
+        Id column name. Default: "rowid"
+    features : :obj:`str`
+        Feature column name. Default: "features"
+    bias : bool
+        Add bias for feature. Default: False
+    hashing : bool
+        Execute feature hashing. Default: False
         If there is a large number of categorical features, hashing at vectorization phase would be better.
-    emit_null : bool, optional
-        Ensure feature entity size equally with emitting Null or 0.
-    force_value : bool, optional
-        Force to output value as 1 for categorical columns.
+    emit_null : bool
+        Ensure feature entity size equally with emitting Null or 0. Default: False
+    force_value : bool
+        Force to output value as 1 for categorical columns. Default: False
 
     Returns
     -------
@@ -74,7 +74,10 @@ def vectorize(
 
 
 def _build_feature_array(
-        columns: List[str], ctype: str, emit_null: Optional[bool] = None, force_value: Optional[bool] = None) -> str:
+        columns: List[str],
+        ctype: str,
+        emit_null: bool = False,
+        force_value: bool = False) -> str:
     """ Build feature array for vectorization.
 
     Parameters
@@ -84,9 +87,9 @@ def _build_feature_array(
     ctype : :obj:`str`
         A type of column. "numerical" or "categorical" can be used.
     emit_null : bool
-        Ensure output null or 0 if a categorical column is null or 0 value.
-    force_value : bool, optional
-        Force to output value as 1 for categorical columns.
+        Ensure output null or 0 if a categorical column is null or 0 value. Default: False
+    force_value : bool
+        Force to output value as 1 for categorical columns. Default: False
 
     Returns
     --------
@@ -121,8 +124,8 @@ def _build_feature_array(
 def _feature_column_query(
         categorical_columns: List[str],
         numerical_columns: List[str],
-        emit_null: Optional[bool] = None,
-        force_value: Optional[bool] = None) -> str:
+        emit_null: bool = False,
+        force_value: bool = False) -> str:
     """Build feature column query.
 
     Parameters
@@ -132,9 +135,9 @@ def _feature_column_query(
     numerical_columns : :obj:`list` of :obj:`str`
         A list of numerical column names.
     emit_null : bool
-        Ensure output null or 0 if a categorical column is null or 0 value.
-    force_value : bool, optional
-        Force to output value as 1 for categorical columns.
+        Ensure output null or 0 if a categorical column is null or 0 value. Default: False
+    force_value : bool
+        Force to output value as 1 for categorical columns. Default: False
 
     Returns
     -------

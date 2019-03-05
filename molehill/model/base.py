@@ -1,5 +1,5 @@
 import textwrap
-from typing import Optional, Union
+from typing import Optional, Union, Dict
 from ..utils import build_query
 
 
@@ -8,9 +8,9 @@ def base_model(function: str,
                target: str = "label",
                source_table: str = "training",
                option: Optional[str] = None,
-               bias: Optional[bool] = None,
-               hashing: Optional[bool] = None,
-               with_clause: Optional[bool] = None,
+               bias: bool = False,
+               hashing: bool = False,
+               with_clause: bool = False,
                scale_pos_weight: Optional[Union[int, str]] = None) -> str:
     """Build model query
 
@@ -22,17 +22,17 @@ def base_model(function: str,
     storage_format : :obj:`str`, optional
         Storage format. e.g. "feature, weight"
     target : :obj:`str`
-        Target column for prediction
+        Target column for prediction. Default: "label"
     source_table : :obj:`str`
         Source table name. Default: "training"
-    option : :obj:`str`
+    option : :obj:`str`, optional
         An option string for specific algorithm.
     bias : bool
-        Add bias or not.
-    hashing : bool, optional
-        Execute feature hashing.
-    with_clause : bool, optional
-        Existence of with clause.
+        Add bias or not. Default: False
+    hashing : bool
+        Execute feature hashing. Default: False
+    with_clause : bool
+        Existence of with clause. Default: False
     scale_pos_weight : int, optional
         Scale for oversampling positive class.
 
@@ -43,7 +43,7 @@ def base_model(function: str,
     """
 
     _source_table = source_table
-    _with_clauses = {}
+    _with_clauses = {}  # type: Dict[str, str]
     if scale_pos_weight:
         _with_clause = build_query(
             ["features", target],

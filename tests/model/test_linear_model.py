@@ -60,7 +60,6 @@ from
 
         assert train_classifier("src_tbl", "target_val", bias=True) == ret_sql
 
-
     def test_train_classifier_hashing(self):
         ret_sql = """\
 select

@@ -14,8 +14,8 @@ def _base_train_query(
         source_table: str,
         target: str,
         option: Optional[str],
-        bias: Optional[bool],
-        hashing: Optional[bool]) -> str:
+        bias: bool = False,
+        hashing: bool = False) -> str:
 
     with_clause = base_model(
         func_name,
@@ -39,8 +39,8 @@ def train_randomforest_classifier(
         source_table: str = "${source}",
         target: str = "label",
         option: Optional[str] = None,
-        bias: Optional[bool] = None,
-        hashing: Optional[bool] = None) -> str:
+        bias: bool = False,
+        hashing: bool = False) -> str:
     """Build train_randomforest_classifier query
 
     Parameters
@@ -50,12 +50,12 @@ def train_randomforest_classifier(
         Source table name. Default: "training"
     target : :obj:`str`
         Target column for prediction
-    option : :obj:`str`
+    option : :obj:`str`, optional
         An option string for specific algorithm.
     bias : bool
-        Add bias or not.
-    hashing : bool, optional
-        Execute feature hashing.
+        Add bias or not. Default: False
+    hashing : bool
+        Execute feature hashing. Default: False
 
     Returns
     --------
@@ -76,8 +76,8 @@ def train_randomforest_regressor(
         source_table: str = "${source}",
         target: str = "label",
         option: Optional[str] = None,
-        bias: Optional[bool] = None,
-        hashing: Optional[bool] = None) -> str:
+        bias: bool = False,
+        hashing: bool = False) -> str:
     """Build train_randomforest_classifier query
 
     Parameters
@@ -87,12 +87,12 @@ def train_randomforest_regressor(
         Target column for prediction
     source_table : :obj:`str`
         Source table name. Default: "training"
-    option : :obj:`str`
+    option : :obj:`str`, optional
         An option string for specific algorithm.
     bias : bool
-        Add bias or not.
-    hashing : bool, optional
-        Execute feature hashing.
+        Add bias or not. Default: False
+    hashing : bool
+        Execute feature hashing. Default: False
 
     Returns
     --------
@@ -113,9 +113,9 @@ def _build_prediction_query(
         target_table: str,
         id_column: str,
         model_table: str,
-        classification: Optional[bool] = None,
-        bias: Optional[bool] = None,
-        hashing: Optional[bool] = None) -> str:
+        classification: bool = False,
+        bias: bool = False,
+        hashing: bool = False) -> str:
 
     _features = "t.features"
     _features = f"feature_hashing({_features})" if hashing else _features
@@ -160,9 +160,9 @@ def _build_prediction_query(
 def predict_randomforest_classifier(
         target_table: str = "${target_table}",
         id_column: str = "rowid",
-        model_table: Optional[str] = "${model_table}",
-        bias: Optional[bool] = None,
-        hashing: Optional[bool] = None) -> Tuple[str, str]:
+        model_table: str = "${model_table}",
+        bias: bool = False,
+        hashing: bool = False) -> Tuple[str, str]:
     """Build prediction query for randomforest classifier.
 
     Parameters
@@ -174,9 +174,9 @@ def predict_randomforest_classifier(
     model_table : :obj:`str`
         Model table name.
     bias : bool
-        Add bias or not.
-    hashing : bool, optional
-        Execute feature hashing.
+        Add bias or not. Default: False
+    hashing : bool
+        Execute feature hashing. Default: False
 
     Returns
     -------
@@ -194,8 +194,8 @@ def predict_randomforest_regressor(
         target_table: str = "${target_table}",
         id_column: str = "rowid",
         model_table: str = "${model_table}",
-        bias: Optional[bool] = None,
-        hashing: Optional[bool] = None) -> Tuple[str, str]:
+        bias: bool = False,
+        hashing: bool = False) -> Tuple[str, str]:
     """Build prediction query for randomforest_regressor.
 
     Parameters
@@ -207,9 +207,9 @@ def predict_randomforest_regressor(
     model_table : :obj:`str`
         Model table name.
     bias : bool
-        Add bias or not.
-    hashing : bool, optional
-        Execute feature hashing.
+        Add bias or not. Default: False
+    hashing : bool
+        Execute feature hashing. Default: False
 
     Returns
     -------

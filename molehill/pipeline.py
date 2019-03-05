@@ -2,7 +2,7 @@ import sys
 import shutil
 import yaml
 from collections import OrderedDict
-from typing import Optional, List, Tuple, Any, Dict, Type
+from typing import Optional, List, Tuple, Any, Dict, Union
 from pathlib import Path
 from .preprocessing import shuffle, train_test_split
 from .preprocessing import Imputer, Normalizer
@@ -47,7 +47,7 @@ class Pipeline:
         self.target_column = None
 
     @staticmethod
-    def save_query(file_path: str, query: str) -> None:
+    def save_query(file_path: Union[str, Path], query: str) -> None:
         p = Path(file_path)
 
         p.parent.mkdir(parents=True, exist_ok=True)
@@ -100,7 +100,7 @@ class Pipeline:
     def _build_shuffle_and_split_task(
             self,
             stratify: Optional[bool] = None) -> OrderedDict:
-        preparation = od()
+        preparation = od()  # type: OrderedDict[str, Any]
 
         shuffle_query = shuffle(
             self.columns, target_column=self.target_column, id_column=self.id_column, stratify=stratify)
@@ -142,7 +142,7 @@ class Pipeline:
             output_prefix: str,
             target_columns: List[str],
             target_clauses: List[str],
-            target_clauses_whole: Optional[List[str]],
+            target_clauses_whole: List[str],
             hive: Optional[bool] = None) -> Tuple[OrderedDict, str, str]:
 
         query_path = str(self.query_dir / f"{query_basename}.sql")
@@ -343,8 +343,8 @@ class Pipeline:
         # Extract column related information.
         self._set_columns(config)
 
-        workflow = od()
-        export = od()
+        workflow = od()  # type: OrderedDict[str, Any]
+        export = od()  # type: OrderedDict[str, Any]
         # Since digdag "!include" seems to be a custom YAML tag, and can't find a way to dump with PyYAML...
         # export["!include"] = "config/params.yml"
         export["source"] = source
@@ -410,10 +410,10 @@ class Pipeline:
         __import__('molehill.model')
         mod = sys.modules['molehill.model']
 
-        main = od()
+        main = od()  # type: OrderedDict[str, Any]
 
         train_idx = 0
-        train_tasks = od()
+        train_tasks = od()  # type: OrderedDict[str, Any]
         for trainer in config.get('trainer', {}):
             if scale_pos_weight:
                 trainer['scale_pos_weight'] = "${scale_pos_weight}"
@@ -435,7 +435,7 @@ class Pipeline:
         self.save_query(self.query_dir / "evaluate.sql", evaluate_query)
 
         pred_idx = 0
-        pred_tasks = od()
+        pred_tasks = od()  # type: OrderedDict[str, Any]
 
         predictors = config.get('predictor', {})
 
@@ -456,7 +456,7 @@ class Pipeline:
 
         self.workflow_path = dest_file if dest_file else f"{source}.dig"
 
-        if not overwrite and Path(dest_file).exists():
+        if not overwrite and Path(self.workflow_path).exists():
             raise FileExistsError(f"{self.workflow_path} already exists")
 
         self.save_query(self.workflow_path, yaml.dump(workflow, default_flow_style=False))

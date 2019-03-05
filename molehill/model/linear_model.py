@@ -7,8 +7,8 @@ def train_classifier(
         source_table: str = "${source}",
         target: str = "target",
         option: Optional[str] = None,
-        bias: Optional[bool] = None,
-        hashing: Optional[bool] = None,
+        bias: bool = False,
+        hashing: bool = False,
         scale_pos_weight: Optional[Union[int, str]] = None) -> str:
     """Build train_classifier query
 
@@ -22,9 +22,9 @@ def train_classifier(
     option : :obj:`str`
         An option string for specific algorithm.
     bias : bool
-        Add bias or not.
-    hashing : bool, optional
-        Execute feature hashing.
+        Add bias or not. Default: False
+    hashing : bool
+        Execute feature hashing. Default: False
     scale_pos_weight : int or :obj:`str`, optional
         Scale for oversampling positive class.
 
@@ -48,8 +48,8 @@ def train_regressor(
         source_table: str = "${source}",
         target: str = "target",
         option: Optional[str] = None,
-        bias: Optional[bool] = None,
-        hashing: Optional[bool] = None,
+        bias: bool = False,
+        hashing: bool = False,
         scale_pos_weight: Optional[Union[int, str]] = None) -> str:
     """Build train_classifier query
 
@@ -60,12 +60,12 @@ def train_regressor(
         Target column for prediction. Default: "target"
     source_table : :obj:`str`
         Source table name. Default: "training"
-    option : :obj:`str`
+    option : :obj:`str`, optional
         An option string for specific algorithm.
     bias : bool
-        Add bias or not.
-    hashing : bool, optional
-        Execute feature hashing.
+        Add bias or not. Default: False
+    hashing : bool
+        Execute feature hashing. Default: False
     scale_pos_weight : int or :obj:`str`, optional
         Scale for oversampling positive class.
 
@@ -90,10 +90,10 @@ def _build_prediction_query(
         target_table: str,
         id_column: str,
         model_table: str,
-        bias: Optional[bool],
-        hashing: Optional[bool],
-        sigmoid: Optional[bool] = None,
-        oversampling: Optional[bool] = None) -> str:
+        bias: bool = False,
+        hashing: bool = False,
+        sigmoid: bool = False,
+        oversampling: bool = False) -> str:
 
     _features = "features"
     _features = f"feature_hashing({_features})" if hashing else _features
@@ -136,9 +136,9 @@ def predict_classifier(
         target_table: str = "${target_table}",
         id_column: str = "rowid",
         model_table: str = "${model_table}",
-        sigmoid: Optional[bool] = True,
-        bias: Optional[bool] = None,
-        hashing: Optional[bool] = None,
+        sigmoid: bool = True,
+        bias: bool = False,
+        hashing: bool = False,
         scale_pos_weight: Optional[Union[int, str]] = None) -> Tuple[str, str]:
     """Build a prediction query for train_classifier
 
@@ -150,14 +150,14 @@ def predict_classifier(
         ID column name.
     model_table : :obj:`str`
         A table name for trained model.
-    sigmoid : bool, optional
+    sigmoid : bool
         Flag for using sigmoid or not. If you used logistic loss, sigmoid works fine.
         With this flag, the calculated column name will be probability, otherwise it'll be total_weight
         Default: True
     bias : bool
-        Add bias or not.
+        Add bias or not. Default: False
     hashing : bool, optional
-        Execute feature hashing.
+        Execute feature hashing. Default: False
     scale_pos_weight : int or :obj:`str`, optional
         Scale for oversampling positive class.
 
@@ -182,25 +182,25 @@ def predict_regressor(
         id_column: str = "rowid",
         model_table: str = "${model_table}",
         predicted_column: str = "target",
-        bias: Optional[bool] = None,
-        hashing: Optional[bool] = None,
+        bias: bool = False,
+        hashing: bool = False,
         scale_pos_weight: Optional[Union[int, str]] = None) -> Tuple[str, str]:
     """Build a prediction query for train_regressor
 
     Parameters
     ----------
     target_table : :obj:`str`
-        A table name for prediction.
+        A table name for prediction. Default: "${target_table}"
     id_column : :obj:`str`
-        ID column name.
+        ID column name. Default: "rowid"
     model_table : :obj:`str`
-        A table name for trained model.
+        A table name for trained model. Default: "${model_table}"
     predicted_column : :obj:`str`
-        A column name to store prediction results.
+        A column name to store prediction results. Default: "target"
     bias : bool
-        Add bias or not.
-    hashing : bool, optional
-        Execute feature hashing.
+        Add bias or not. Default: False
+    hashing : bool
+        Execute feature hashing. Default: False
     scale_pos_weight : int or :obj:`str`, optional
         Scale for oversampling positive class.
 
