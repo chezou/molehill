@@ -1,5 +1,5 @@
 import textwrap
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Union
 from .base import base_model
 from ..utils import build_query
 
@@ -15,7 +15,8 @@ def _base_train_query(
         target: str,
         option: Optional[str],
         bias: bool = False,
-        hashing: bool = False) -> str:
+        hashing: bool = False,
+        scale_pos_weight: Optional[Union[int, str]] = None) -> str:
 
     with_clause = base_model(
         func_name,
@@ -25,7 +26,8 @@ def _base_train_query(
         option,
         bias=bias,
         hashing=hashing,
-        with_clause=True)
+        with_clause=True,
+        scale_pos_weight=scale_pos_weight)
 
     # Need to avoid Map format due to TD limitation.
     exploded_importance = "concat_ws(',', collect_set(concat(k1, ':', v1))) as var_importance"
@@ -40,7 +42,8 @@ def train_randomforest_classifier(
         target: str = "label",
         option: Optional[str] = None,
         bias: bool = False,
-        hashing: bool = False) -> str:
+        hashing: bool = False,
+        scale_pos_weight: Optional[Union[int, str]] = None) -> str:
     """Build train_randomforest_classifier query
 
     Parameters
@@ -56,6 +59,8 @@ def train_randomforest_classifier(
         Add bias or not. Default: False
     hashing : bool
         Execute feature hashing. Default: False
+    scale_pos_weight : int or :obj:`str`, optional
+        Scale for oversampling positive class.
 
     Returns
     --------
@@ -69,7 +74,8 @@ def train_randomforest_classifier(
         target,
         option,
         bias,
-        hashing)
+        hashing,
+        scale_pos_weight)
 
 
 def train_randomforest_regressor(
@@ -77,7 +83,8 @@ def train_randomforest_regressor(
         target: str = "label",
         option: Optional[str] = None,
         bias: bool = False,
-        hashing: bool = False) -> str:
+        hashing: bool = False,
+        scale_pos_weight: Optional[Union[int, str]] = None) -> str:
     """Build train_randomforest_classifier query
 
     Parameters
@@ -93,6 +100,8 @@ def train_randomforest_regressor(
         Add bias or not. Default: False
     hashing : bool
         Execute feature hashing. Default: False
+    scale_pos_weight : int or :obj:`str`, optional
+        Scale for oversampling positive class.
 
     Returns
     --------
@@ -106,7 +115,8 @@ def train_randomforest_regressor(
         target,
         option,
         bias,
-        hashing)
+        hashing,
+        scale_pos_weight)
 
 
 def _build_prediction_query(
