@@ -281,6 +281,7 @@ class Pipeline:
             "td>": str(_query_path),
             "source": source,
             "target_column": target_column,
+            "engine": "presto",
             "store_last_results": True
         })
 
@@ -456,12 +457,13 @@ class Pipeline:
 
         predictors = config.get('predictor', {})
 
+        if scale_pos_weight:
+            pred_tasks[f"+compute_downsampling_rate"] = self._build_downsampling_task(
+                train_table, self.target_column)
+
         for predictor in predictors:
             if scale_pos_weight:
                 predictor['scale_pos_weight'] = "${scale_pos_weight}"
-
-                pred_tasks[f"+compute_downsampling_rate_{pred_idx}"] = self._build_downsampling_task(
-                    train_table, self.target_column)
 
             pred_tasks[f"+seq_{pred_idx}"] = self._build_predict_and_eval_task(
                 predictor, mod, pred_idx, test_table, metrics, len(predictors) == 1)
