@@ -52,13 +52,13 @@ def build_query(select_clauses: List[str],
 
     for k, v in with_clauses.items():
         tmp = f"""\
-with {k} as (
+{k} as (
 {textwrap.indent(v, "  ")}
 )"""
         _with_clauses.append(tmp)
 
     if len(with_clauses) > 0:
-        query += "{_with}\n-- DIGDAG_INSERT_LINE\n".format(_with=',\n'.join(_with_clauses))
+        query += "with {_with}\n-- DIGDAG_INSERT_LINE\n".format(_with=',\n'.join(_with_clauses))
 
     query += "select\n"
     _query = ""

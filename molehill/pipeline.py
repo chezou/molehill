@@ -7,6 +7,7 @@ from pathlib import Path
 from .preprocessing import shuffle, train_test_split
 from .preprocessing import Imputer, Normalizer
 from .preprocessing import vectorize
+from .preprocessing import downsampling_rate
 from .evaluation import evaluate
 from .stats import compute_stats, combine_train_test_stats
 from .utils import build_query
@@ -267,6 +268,21 @@ class Pipeline:
             "create_table": model_table,
         })
 
+    def _build_downsampling_task(
+            self,
+            source: str,
+            target_column: str) -> OrderedDict:
+
+        downsample_query = downsampling_rate("${source}", "${target_column}")
+        _query_path = self.query_dir / "downsampling_rate.sql"
+        self.save_query(_query_path, downsample_query)
+
+        return od({
+            "td>": str(_query_path),
+            "source": source,
+            "target_column": target_column
+        })
+
     def _build_predict_and_eval_task(
             self,
             config: OrderedDict,
@@ -442,6 +458,9 @@ class Pipeline:
         for predictor in predictors:
             if scale_pos_weight:
                 predictor['scale_pos_weight'] = "${scale_pos_weight}"
+
+                pred_tasks[f"+compute_downsampling_rate_{pred_idx}"] = self._build_downsampling_task(
+                    train_table, self.target_column)
 
             pred_tasks[f"+seq_{pred_idx}"] = self._build_predict_and_eval_task(
                 predictor, mod, pred_idx, test_table, metrics, len(predictors) == 1)
