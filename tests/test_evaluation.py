@@ -8,17 +8,17 @@ def test_evaluate_with_auc():
 select
   auc(predicted, target) as auc
   , logloss(predicted, target) as logloss
+from
+  (
+    select
+      p.predicted, t.target
     from
-      (
-  select
-    p.predicted, t.target
-  from
-    pred p
-  join
-    actual t on (p.id = t.id)
-  order by
-    probability desc
-) t2
+      pred p
+    join
+      actual t on (p.id = t.id)
+    order by
+      probability desc
+  ) t2
 ;
 """
     assert evaluate(metrics, 'target', 'predicted', 'actual', 'pred', 'id') == ret_sql

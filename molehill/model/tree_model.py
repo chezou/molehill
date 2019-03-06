@@ -1,5 +1,6 @@
 import textwrap
-from typing import Optional, List, Tuple
+from collections import OrderedDict
+from typing import Optional, List, Tuple, Union
 from .base import base_model
 from ..utils import build_query
 
@@ -13,9 +14,10 @@ def _base_train_query(
         func_name: str,
         source_table: str,
         target: str,
-        option: str,
-        bias: bool,
-        hashing: bool) -> str:
+        option: Optional[str],
+        bias: bool = False,
+        hashing: bool = False,
+        oversample_pos_n_times: Optional[Union[int, str]] = None) -> str:
 
     with_clause = base_model(
         func_name,
@@ -25,22 +27,24 @@ def _base_train_query(
         option,
         bias=bias,
         hashing=hashing,
-        with_clause=True)
+        with_clause=True,
+        oversample_pos_n_times=oversample_pos_n_times)
 
     # Need to avoid Map format due to TD limitation.
     exploded_importance = "concat_ws(',', collect_set(concat(k1, ':', v1))) as var_importance"
     view_cond = "lateral view explode(var_importance) t1 as k1, v1\ngroup by 1, 2, 3, 5, 6"
 
     return build_query(["model_id", "model_weight", "model", exploded_importance, "oob_errors", "oob_tests"],
-                       "models", view_cond, with_clauses={"models": with_clause})
+                       "models", view_cond, with_clauses=OrderedDict({"models": with_clause}))
 
 
 def train_randomforest_classifier(
         source_table: str = "${source}",
         target: str = "label",
         option: Optional[str] = None,
-        bias: Optional[bool] = None,
-        hashing: Optional[bool] = None) -> str:
+        bias: bool = False,
+        hashing: bool = False,
+        oversample_pos_n_times: Optional[Union[int, str]] = None) -> str:
     """Build train_randomforest_classifier query
 
     Parameters
@@ -50,12 +54,14 @@ def train_randomforest_classifier(
         Source table name. Default: "training"
     target : :obj:`str`
         Target column for prediction
-    option : :obj:`str`
+    option : :obj:`str`, optional
         An option string for specific algorithm.
     bias : bool
-        Add bias or not.
-    hashing : bool, optional
-        Execute feature hashing.
+        Add bias or not. Default: False
+    hashing : bool
+        Execute feature hashing. Default: False
+    oversample_pos_n_times : int or :obj:`str`, optional
+        Scale for oversampling positive class.
 
     Returns
     --------
@@ -69,15 +75,17 @@ def train_randomforest_classifier(
         target,
         option,
         bias,
-        hashing)
+        hashing,
+        oversample_pos_n_times)
 
 
 def train_randomforest_regressor(
         source_table: str = "${source}",
         target: str = "label",
         option: Optional[str] = None,
-        bias: Optional[bool] = None,
-        hashing: Optional[bool] = None) -> str:
+        bias: bool = False,
+        hashing: bool = False,
+        oversample_pos_n_times: Optional[Union[int, str]] = None) -> str:
     """Build train_randomforest_classifier query
 
     Parameters
@@ -87,12 +95,14 @@ def train_randomforest_regressor(
         Target column for prediction
     source_table : :obj:`str`
         Source table name. Default: "training"
-    option : :obj:`str`
+    option : :obj:`str`, optional
         An option string for specific algorithm.
     bias : bool
-        Add bias or not.
-    hashing : bool, optional
-        Execute feature hashing.
+        Add bias or not. Default: False
+    hashing : bool
+        Execute feature hashing. Default: False
+    oversample_pos_n_times : int or :obj:`str`, optional
+        Scale for oversampling positive class.
 
     Returns
     --------
@@ -106,16 +116,17 @@ def train_randomforest_regressor(
         target,
         option,
         bias,
-        hashing)
+        hashing,
+        oversample_pos_n_times)
 
 
 def _build_prediction_query(
         target_table: str,
         id_column: str,
         model_table: str,
-        classification: Optional[bool] = None,
-        bias: Optional[bool] = None,
-        hashing: Optional[bool] = None) -> str:
+        classification: bool = False,
+        bias: bool = False,
+        hashing: bool = False) -> str:
 
     _features = "t.features"
     _features = f"feature_hashing({_features})" if hashing else _features
@@ -158,11 +169,11 @@ def _build_prediction_query(
 
 
 def predict_randomforest_classifier(
-        target_table: Optional[str] = "${target_table}",
-        id_column: Optional[str] = "rowid",
-        model_table: Optional[str] = "${model_table}",
-        bias: Optional[bool] = None,
-        hashing: Optional[bool] = None) -> Tuple[str, str]:
+        target_table: str = "${target_table}",
+        id_column: str = "rowid",
+        model_table: str = "${model_table}",
+        bias: bool = False,
+        hashing: bool = False) -> Tuple[str, str]:
     """Build prediction query for randomforest classifier.
 
     Parameters
@@ -174,9 +185,9 @@ def predict_randomforest_classifier(
     model_table : :obj:`str`
         Model table name.
     bias : bool
-        Add bias or not.
-    hashing : bool, optional
-        Execute feature hashing.
+        Add bias or not. Default: False
+    hashing : bool
+        Execute feature hashing. Default: False
 
     Returns
     -------
@@ -194,8 +205,8 @@ def predict_randomforest_regressor(
         target_table: str = "${target_table}",
         id_column: str = "rowid",
         model_table: str = "${model_table}",
-        bias: Optional[bool] = None,
-        hashing: Optional[bool] = None) -> Tuple[str, str]:
+        bias: bool = False,
+        hashing: bool = False) -> Tuple[str, str]:
     """Build prediction query for randomforest_regressor.
 
     Parameters
@@ -207,9 +218,9 @@ def predict_randomforest_regressor(
     model_table : :obj:`str`
         Model table name.
     bias : bool
-        Add bias or not.
-    hashing : bool, optional
-        Execute feature hashing.
+        Add bias or not. Default: False
+    hashing : bool
+        Execute feature hashing. Default: False
 
     Returns
     -------

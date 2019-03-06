@@ -68,7 +68,7 @@ group by 1, 2, 3, 5, 6
     assert train_randomforest_regressor("src_tbl", "target_val") == ret_sql
 
 
-class TestPredictClassifier(object):
+class TestPredictClassifier:
     def test_predict_randomforest_classifier(self):
         ret_sql = """\
 with ensembled as (
@@ -215,7 +215,7 @@ from
         assert pred_col == "probability"
 
 
-class TestPredictRegressor(object):
+class TestPredictRegressor:
     def test_predict_randomforest_regressor(self):
         ret_sql = """\
 with ensembled as (

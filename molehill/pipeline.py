@@ -2,11 +2,12 @@ import sys
 import shutil
 import yaml
 from collections import OrderedDict
-from typing import Optional, List, Tuple, Any, Dict, Type
+from typing import Optional, List, Tuple, Any, Dict, Union
 from pathlib import Path
 from .preprocessing import shuffle, train_test_split
 from .preprocessing import Imputer, Normalizer
 from .preprocessing import vectorize
+from .preprocessing import downsampling_rate
 from .evaluation import evaluate
 from .stats import compute_stats, combine_train_test_stats
 from .utils import build_query
@@ -26,7 +27,7 @@ yaml.add_constructor('tag:yaml.org,2002:map', construct_odict)
 od = OrderedDict
 
 
-class Pipeline(object):
+class Pipeline:
     def __init__(self):
         self.comp_stats_task = None
         self.combine_stats_path = None
@@ -47,7 +48,7 @@ class Pipeline(object):
         self.target_column = None
 
     @staticmethod
-    def save_query(file_path: str, query: str) -> None:
+    def save_query(file_path: Union[str, Path], query: str) -> None:
         p = Path(file_path)
 
         p.parent.mkdir(parents=True, exist_ok=True)
@@ -100,7 +101,7 @@ class Pipeline(object):
     def _build_shuffle_and_split_task(
             self,
             stratify: Optional[bool] = None) -> OrderedDict:
-        preparation = od()
+        preparation = od()  # type: OrderedDict[str, Any]
 
         shuffle_query = shuffle(
             self.columns, target_column=self.target_column, id_column=self.id_column, stratify=stratify)
@@ -142,7 +143,7 @@ class Pipeline(object):
             output_prefix: str,
             target_columns: List[str],
             target_clauses: List[str],
-            target_clauses_whole: Optional[List[str]],
+            target_clauses_whole: List[str],
             hive: Optional[bool] = None) -> Tuple[OrderedDict, str, str]:
 
         query_path = str(self.query_dir / f"{query_basename}.sql")
@@ -267,6 +268,23 @@ class Pipeline(object):
             "create_table": model_table,
         })
 
+    def _build_downsampling_task(
+            self,
+            source: str,
+            target_column: str) -> OrderedDict:
+
+        downsample_query = downsampling_rate("${source}", "${target_column}")
+        _query_path = self.query_dir / "downsampling_rate.sql"
+        self.save_query(_query_path, downsample_query)
+
+        return od({
+            "td>": str(_query_path),
+            "source": source,
+            "target_column": target_column,
+            "engine": "presto",
+            "store_last_results": True
+        })
+
     def _build_predict_and_eval_task(
             self,
             config: OrderedDict,
@@ -338,16 +356,25 @@ class Pipeline(object):
         self.id_column = config['id_column']
         self.target_column = config['target_column']
         train_sample_rate = config["train_sample_rate"]
+        oversample_pos_n_times = config.get("oversample_pos_n_times")
+        oversample_n_times = config.get("oversample_n_times")
 
         # Extract column related information.
         self._set_columns(config)
 
-        workflow = od()
-        export = od()
+        workflow = od()  # type: OrderedDict[str, Any]
+        export = od()  # type: OrderedDict[str, Any]
         # Since digdag "!include" seems to be a custom YAML tag, and can't find a way to dump with PyYAML...
         # export["!include"] = "config/params.yml"
         export["source"] = source
         export["train_sample_rate"] = train_sample_rate
+
+        if oversample_n_times:
+            export["oversample_n_times"] = oversample_n_times
+
+        elif oversample_pos_n_times:
+            export["oversample_pos_n_times"] = oversample_pos_n_times
+
         export["td"] = {"database": dbname, "engine": "hive"}
         workflow["_export"] = export
 
@@ -407,11 +434,16 @@ class Pipeline(object):
         __import__('molehill.model')
         mod = sys.modules['molehill.model']
 
-        main = od()
+        main = od()  # type: OrderedDict[str, Any]
 
         train_idx = 0
-        train_tasks = od()
+        train_tasks = od()  # type: OrderedDict[str, Any]
         for trainer in config.get('trainer', {}):
+            if oversample_n_times and trainer.get('oversample_n_times') is None:
+                trainer['oversample_n_times'] = "${oversample_n_times}"
+            elif oversample_pos_n_times and trainer.get('oversample_pos_n_times') is None:
+                trainer['oversample_pos_n_times'] = "${oversample_pos_n_times}"
+
             train_tasks[f"+train_{train_idx}"] = self._build_train_task(trainer, mod, train_table)
             train_idx += 1
 
@@ -430,11 +462,18 @@ class Pipeline(object):
         self.save_query(self.query_dir / "evaluate.sql", evaluate_query)
 
         pred_idx = 0
-        pred_tasks = od()
+        pred_tasks = od()  # type: OrderedDict[str, Any]
 
         predictors = config.get('predictor', {})
 
+        if oversample_pos_n_times:
+            pred_tasks[f"+compute_downsampling_rate"] = self._build_downsampling_task(
+                train_table, self.target_column)
+
         for predictor in predictors:
+            if oversample_pos_n_times and predictor.get('oversample_pos_n_times') is None:
+                predictor['oversample_pos_n_times'] = "${oversample_pos_n_times}"
+
             pred_tasks[f"+seq_{pred_idx}"] = self._build_predict_and_eval_task(
                 predictor, mod, pred_idx, test_table, metrics, len(predictors) == 1)
 
@@ -448,7 +487,7 @@ class Pipeline(object):
 
         self.workflow_path = dest_file if dest_file else f"{source}.dig"
 
-        if not overwrite and Path(dest_file).exists():
+        if not overwrite and Path(self.workflow_path).exists():
             raise FileExistsError(f"{self.workflow_path} already exists")
 
         self.save_query(self.workflow_path, yaml.dump(workflow, default_flow_style=False))
