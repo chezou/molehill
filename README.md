@@ -15,7 +15,8 @@ $ pip install git+https://github.com/chezou/molehill#egg=molehill
 ## Usage
 
 ```bash
-$ generate_workflow --overwrite -dest titanic.rf resources/titanic_pipeline.yml
+# will generate queries directory and titanic.dig
+$ generate_workflow --overwrite -dest titanic.dig resources/titanic_pipeline.yml
 $ td wf push proj-name
 $ td wf start proj-name titanic --session now
 ```
