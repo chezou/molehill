@@ -17,9 +17,9 @@ from
 
         assert train_classifier("src_tbl", "target_val") == ret_sql
 
-    def test_train_classifier_oversampling(self):
+    def test_train_classifier_pos_oversampling(self):
         ret_sql = """\
-with train_oversampling as (
+with train_oversampled as (
   select
     features
     , target_val
@@ -33,24 +33,71 @@ with train_oversampling as (
   from
     (
       select
-        amplify(${scale_pos_weight}, features, target_val) as (features, target_val)
+        amplify(${oversample_pos_n_times}, features, target_val) as (features, target_val)
       from
         src_tbl
       where target_val = 1
     ) t0
+),
+model_oversampled as (
+  select
+    train_classifier(
+      features
+      , target_val
+    ) as (feature, weight)
+  from
+    train_oversampled
 )
 -- DIGDAG_INSERT_LINE
 select
-  train_classifier(
-    features
-    , target_val
-  ) as (feature, weight)
+  feature
+  , avg(weight) as weight
 from
-  train_oversampling
+  model_oversampled
+group by
+  feature
 ;
 """
 
-        assert train_classifier("src_tbl", "target_val", scale_pos_weight=2) == ret_sql
+        assert train_classifier("src_tbl", "target_val", oversample_pos_n_times="${oversample_pos_n_times}") == ret_sql
+
+    def test_train_classifier_oversampling(self):
+        ret_sql = """\
+with amplified as (
+  select
+    amplify(${oversample_n_times}, features, target_val) as (features, target_val)
+  from
+    src_tbl
+),
+train_oversampled as (
+  select
+    features
+    , target_val
+  from
+    amplified
+  CLUSTER BY rand(43)
+),
+model_oversampled as (
+  select
+    train_classifier(
+      features
+      , target_val
+    ) as (feature, weight)
+  from
+    train_oversampled
+)
+-- DIGDAG_INSERT_LINE
+select
+  feature
+  , avg(weight) as weight
+from
+  model_oversampled
+group by
+  feature
+;
+"""
+
+        assert train_classifier("src_tbl", "target_val", oversample_n_times="${oversample_n_times}") == ret_sql
 
     def test_train_classifier_bias(self):
         ret_sql = """\

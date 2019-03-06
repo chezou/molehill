@@ -1,8 +1,9 @@
+from collections import OrderedDict
 from ..utils import build_query
 
 
 def downsampling_rate(source: str, target_column: str):
-    _with_clauses = dict()
+    _with_clauses = OrderedDict()  # type: OrderedDict[str, str]
     _with_clauses['label_count'] = build_query(
         [target_column, "cast(count(1) as double) as cnt"], source,
         condition=f"group by\n  {target_column}", without_semicolon=True)
@@ -11,5 +12,5 @@ def downsampling_rate(source: str, target_column: str):
     )
 
     return build_query(
-        ["(kv[0] / (kv[0] + kv[1] * ${scale_pos_weight}.0)) / (kv[0] / (kv[0] + kv[1])) as downsampling_rate"],
+        ["(kv[0] / (kv[0] + kv[1] * ${oversample_pos_n_times}.0)) / (kv[0] / (kv[0] + kv[1])) as downsampling_rate"],
         "aggregated", with_clauses=_with_clauses)

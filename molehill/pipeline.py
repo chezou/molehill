@@ -356,7 +356,8 @@ class Pipeline:
         self.id_column = config['id_column']
         self.target_column = config['target_column']
         train_sample_rate = config["train_sample_rate"]
-        scale_pos_weight = config.get("scale_pos_weight")
+        oversample_pos_n_times = config.get("oversample_pos_n_times")
+        oversample_n_times = config.get("oversample_n_times")
 
         # Extract column related information.
         self._set_columns(config)
@@ -367,8 +368,13 @@ class Pipeline:
         # export["!include"] = "config/params.yml"
         export["source"] = source
         export["train_sample_rate"] = train_sample_rate
-        if scale_pos_weight:
-            export["scale_pos_weight"] = scale_pos_weight
+
+        if oversample_n_times:
+            export["oversample_n_times"] = oversample_n_times
+
+        elif oversample_pos_n_times:
+            export["oversample_pos_n_times"] = oversample_pos_n_times
+
         export["td"] = {"database": dbname, "engine": "hive"}
         workflow["_export"] = export
 
@@ -433,8 +439,11 @@ class Pipeline:
         train_idx = 0
         train_tasks = od()  # type: OrderedDict[str, Any]
         for trainer in config.get('trainer', {}):
-            if scale_pos_weight:
-                trainer['scale_pos_weight'] = "${scale_pos_weight}"
+            if oversample_n_times and trainer.get('oversample_n_times') is None:
+                trainer['oversample_n_times'] = "${oversample_n_times}"
+            elif oversample_pos_n_times and trainer.get('oversample_pos_n_times') is None:
+                trainer['oversample_pos_n_times'] = "${oversample_pos_n_times}"
+
             train_tasks[f"+train_{train_idx}"] = self._build_train_task(trainer, mod, train_table)
             train_idx += 1
 
@@ -457,13 +466,13 @@ class Pipeline:
 
         predictors = config.get('predictor', {})
 
-        if scale_pos_weight:
+        if oversample_pos_n_times:
             pred_tasks[f"+compute_downsampling_rate"] = self._build_downsampling_task(
                 train_table, self.target_column)
 
         for predictor in predictors:
-            if scale_pos_weight:
-                predictor['scale_pos_weight'] = "${scale_pos_weight}"
+            if oversample_pos_n_times and predictor.get('oversample_pos_n_times') is None:
+                predictor['oversample_pos_n_times'] = "${oversample_pos_n_times}"
 
             pred_tasks[f"+seq_{pred_idx}"] = self._build_predict_and_eval_task(
                 predictor, mod, pred_idx, test_table, metrics, len(predictors) == 1)

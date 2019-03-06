@@ -1,4 +1,5 @@
 import textwrap
+from collections import OrderedDict
 from typing import List, Optional
 
 
@@ -6,7 +7,7 @@ def build_query(select_clauses: List[str],
                 source: str,
                 condition: Optional[str] = None,
                 without_semicolon: Optional[bool] = None,
-                with_clauses: Optional[dict] = None) -> str:
+                with_clauses: Optional[OrderedDict] = None) -> str:
     """Build query from partial select clauses
 
     Parameters
@@ -46,14 +47,14 @@ def build_query(select_clauses: List[str],
     query = ""
 
     if not with_clauses:
-        with_clauses = {}
+        with_clauses = OrderedDict()
 
     _with_clauses = []
 
     for k, v in with_clauses.items():
         tmp = f"""\
 {k} as (
-{textwrap.indent(v, "  ")}
+{textwrap.indent(v, '  ')}
 )"""
         _with_clauses.append(tmp)
 

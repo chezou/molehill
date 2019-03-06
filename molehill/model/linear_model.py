@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from typing import Optional, Tuple, Union
 from .base import base_model
 from ..utils import build_query
@@ -9,7 +10,8 @@ def train_classifier(
         option: Optional[str] = None,
         bias: bool = False,
         hashing: bool = False,
-        scale_pos_weight: Optional[Union[int, str]] = None) -> str:
+        oversample_pos_n_times: Optional[Union[int, str]] = None,
+        oversample_n_times: Optional[Union[int, str]] = None) -> str:
     """Build train_classifier query
 
     Parameters
@@ -25,8 +27,10 @@ def train_classifier(
         Add bias or not. Default: False
     hashing : bool
         Execute feature hashing. Default: False
-    scale_pos_weight : int or :obj:`str`, optional
+    oversample_pos_n_times : int or :obj:`str`, optional
         Scale for oversampling positive class.
+    oversample_n_times : int or :obj:`str`, optional
+        Scale for oversampling train data. This option and oversample_pos_n_times are exclusive.
 
     Returns
     --------
@@ -41,7 +45,8 @@ def train_classifier(
                       option,
                       bias=bias,
                       hashing=hashing,
-                      scale_pos_weight=scale_pos_weight)
+                      oversample_pos_n_times=oversample_pos_n_times,
+                      oversample_n_times=oversample_n_times)
 
 
 def train_regressor(
@@ -50,7 +55,8 @@ def train_regressor(
         option: Optional[str] = None,
         bias: bool = False,
         hashing: bool = False,
-        scale_pos_weight: Optional[Union[int, str]] = None) -> str:
+        oversample_pos_n_times: Optional[Union[int, str]] = None,
+        oversample_n_times: Optional[Union[int, str]] = None) -> str:
     """Build train_classifier query
 
     Parameters
@@ -66,8 +72,10 @@ def train_regressor(
         Add bias or not. Default: False
     hashing : bool
         Execute feature hashing. Default: False
-    scale_pos_weight : int or :obj:`str`, optional
+    oversample_pos_n_times : int or :obj:`str`, optional
         Scale for oversampling positive class.
+    oversample_n_times : int or :obj:`str`, optional
+        Scale for oversampling train data. This option and oversample_pos_n_times are exclusive.
 
     Returns
     --------
@@ -82,7 +90,8 @@ def train_regressor(
                       option,
                       bias=bias,
                       hashing=hashing,
-                      scale_pos_weight=scale_pos_weight)
+                      oversample_pos_n_times=oversample_pos_n_times,
+                      oversample_n_times=oversample_n_times)
 
 
 def _build_prediction_query(
@@ -93,7 +102,7 @@ def _build_prediction_query(
         bias: bool = False,
         hashing: bool = False,
         sigmoid: bool = False,
-        oversampling: bool = False) -> str:
+        pos_oversampling: bool = False) -> str:
 
     _features = "features"
     _features = f"feature_hashing({_features})" if hashing else _features
@@ -104,14 +113,14 @@ def _build_prediction_query(
     else:
         _total_weight = f"sum(m1.weight * t1.value) as {predicted_column}"
 
-    _with_clauses = {
+    _with_clauses = OrderedDict({
         "features_exploded": build_query(
             [id_column, "extract_feature(fv) as feature", "extract_weight(fv) as value"],
             f"{target_table} t1\nLATERAL VIEW explode({_features}) t2 as fv",
             without_semicolon=True
         )
-    }
-    if oversampling:
+    })
+    if pos_oversampling:
         _with_clauses['score'] = build_query(
             [f"t1.{id_column}", _total_weight],
             f"features_exploded t1\nleft outer join {model_table} m1 on (t1.feature = m1.feature)",
@@ -139,7 +148,7 @@ def predict_classifier(
         sigmoid: bool = True,
         bias: bool = False,
         hashing: bool = False,
-        scale_pos_weight: Optional[Union[int, str]] = None) -> Tuple[str, str]:
+        oversample_pos_n_times: Optional[Union[int, str]] = None, **kwargs) -> Tuple[str, str]:
     """Build a prediction query for train_classifier
 
     Parameters
@@ -158,7 +167,7 @@ def predict_classifier(
         Add bias or not. Default: False
     hashing : bool, optional
         Execute feature hashing. Default: False
-    scale_pos_weight : int or :obj:`str`, optional
+    oversample_pos_n_times : int or :obj:`str`, optional
         Scale for oversampling positive class.
 
     Returns
@@ -173,7 +182,7 @@ def predict_classifier(
 
     return _build_prediction_query(
         predicted_column, target_table, id_column, model_table,
-        bias=bias, hashing=hashing, sigmoid=sigmoid, oversampling=bool(scale_pos_weight)
+        bias=bias, hashing=hashing, sigmoid=sigmoid, pos_oversampling=bool(oversample_pos_n_times)
     ), predicted_column
 
 
@@ -184,7 +193,7 @@ def predict_regressor(
         predicted_column: str = "target",
         bias: bool = False,
         hashing: bool = False,
-        scale_pos_weight: Optional[Union[int, str]] = None) -> Tuple[str, str]:
+        oversample_pos_n_times: Optional[Union[int, str]] = None, **kwargs) -> Tuple[str, str]:
     """Build a prediction query for train_regressor
 
     Parameters
@@ -201,7 +210,7 @@ def predict_regressor(
         Add bias or not. Default: False
     hashing : bool
         Execute feature hashing. Default: False
-    scale_pos_weight : int or :obj:`str`, optional
+    oversample_pos_n_times : int or :obj:`str`, optional
         Scale for oversampling positive class.
 
     Returns
@@ -214,5 +223,5 @@ def predict_regressor(
 
     return _build_prediction_query(
         predicted_column, target_table, id_column, model_table,
-        bias=bias, hashing=hashing, sigmoid=False, oversampling=bool(scale_pos_weight)
+        bias=bias, hashing=hashing, sigmoid=False, pos_oversampling=bool(oversample_pos_n_times)
     ), predicted_column

@@ -1,7 +1,7 @@
 _export:
   source: titanic
   train_sample_rate: 0.8
-  oversample_pos_n_times: 2
+  oversample_n_times: 3
   td:
     database: ml_tips
     engine: hive
@@ -118,12 +118,6 @@ _export:
       source: train
       create_table: model
   +predict:
-    +compute_downsampling_rate:
-      td>: queries/downsampling_rate.sql
-      source: train
-      target_column: survived
-      engine: presto
-      store_last_results: true
     +seq_0:
       +exec_predict:
         td>: queries/predict_classifier.sql

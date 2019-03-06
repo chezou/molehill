@@ -2,8 +2,7 @@
 source: titanic
 dbname: ml_tips
 train_sample_rate: 0.8
-oversample_n_times: 3 # Multiply all samples with this scale. The value should be int
-#oversample_pos_n_times: 2 # Multiply positive samples with this scale. The value should be int.
+oversample_pos_n_times: 2 # Multiply positive samples with this scale. The value should be int.
 
 query_dir: queries
 

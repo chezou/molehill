@@ -1,5 +1,6 @@
 import textwrap
-from typing import Optional, Union, Dict
+from collections import OrderedDict
+from typing import Optional, Union
 from ..utils import build_query
 
 
@@ -11,7 +12,8 @@ def base_model(function: str,
                bias: bool = False,
                hashing: bool = False,
                with_clause: bool = False,
-               scale_pos_weight: Optional[Union[int, str]] = None) -> str:
+               oversample_pos_n_times: Optional[Union[int, str]] = None,
+               oversample_n_times: Optional[Union[int, str]] = None) -> str:
     """Build model query
 
     Parameters
@@ -33,8 +35,10 @@ def base_model(function: str,
         Execute feature hashing. Default: False
     with_clause : bool
         Existence of with clause. Default: False
-    scale_pos_weight : int, optional
-        Scale for oversampling positive class.
+    oversample_pos_n_times : int or :obj:`str`, optional
+        Scale for oversampling positive class. This option and oversample_n_times are exclusive.
+    oversample_n_times : int or :obj:`str`, optional
+        Scale for oversampling train data. This option and oversample_pos_n_times are exclusive.
 
     Returns
     --------
@@ -43,26 +47,15 @@ def base_model(function: str,
     """
 
     _source_table = source_table
-    _with_clauses = {}  # type: Dict[str, str]
-    if scale_pos_weight:
-        _with_clause = build_query(
-            ["features", target],
-            source_table,
-            condition=f"where {target} = 0",
-            without_semicolon=True)
-        _with_clause += "\nunion all\n"
+    _with_clauses = OrderedDict()  # type: OrderedDict[str, str]
+    _without_semicolon = with_clause
 
-        _oversample_query = build_query(
-            [f"amplify(${{scale_pos_weight}}, features, {target}) as (features, {target})"],
-            source_table,
-            condition=f"where {target} = 1",
-            without_semicolon=True)
-        _with_clause += build_query(
-            ["features", target],
-            f"(\n{textwrap.indent(_oversample_query, '  ')}\n) t0",
-            without_semicolon=True)
-        _source_table = "train_oversampling"
-        _with_clauses = {_source_table: _with_clause}
+    if oversample_pos_n_times and oversample_n_times:
+        raise ValueError("scale_pos_weigh and oversample_n_times are exclusive.")
+
+    if oversample_pos_n_times or oversample_n_times:
+        _source_table = "train_oversampled"
+        _without_semicolon = True
 
     _features = "features"
     _features = f"feature_hashing({_features})" if hashing else _features
@@ -77,4 +70,47 @@ def base_model(function: str,
     _as = f" as ({storage_format})" if storage_format else ""
     select_clause += f"){_as}"
 
-    return build_query([select_clause], _source_table, without_semicolon=with_clause, with_clauses=_with_clauses)
+    _query = build_query([select_clause], _source_table, without_semicolon=_without_semicolon)  # type: str
+
+    if not oversample_pos_n_times and not oversample_n_times:
+        return _query
+
+    if oversample_pos_n_times:
+        _with_clause = build_query(
+            ["features", target],
+            source_table,
+            condition=f"where {target} = 0",
+            without_semicolon=True)
+        _with_clause += "\nunion all\n"
+
+        _oversample_query = build_query(
+            [f"amplify({oversample_pos_n_times}, features, {target}) as (features, {target})"],
+            source_table,
+            condition=f"where {target} = 1",
+            without_semicolon=True)
+        _with_clause += build_query(
+            ["features", target],
+            f"(\n{textwrap.indent(_oversample_query, '  ')}\n) t0",
+            without_semicolon=True)
+        _with_clauses["train_oversampled"] = _with_clause
+        _with_clauses["model_oversampled"] = _query
+
+    elif oversample_n_times:
+        _with_clauses["amplified"] = build_query(
+            [f"amplify({oversample_n_times}, features, {target}) as (features, {target})"],
+            source_table,
+            without_semicolon=True)
+
+        _with_clauses["train_oversampled"] = build_query(
+            ["features", target],
+            "amplified",
+            condition="CLUSTER BY rand(43)",
+            without_semicolon=True)
+
+        _with_clauses["model_oversampled"] = _query
+
+    return build_query(
+        ["feature", "avg(weight) as weight"],
+        "model_oversampled",
+        condition="group by\n  feature",
+        without_semicolon=with_clause, with_clauses=_with_clauses)

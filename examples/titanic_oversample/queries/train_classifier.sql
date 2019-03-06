@@ -1,22 +1,16 @@
-with train_oversampled as (
+with amplified as (
   select
-    features
-    , survived
+    amplify(${oversample_n_times}, features, survived) as (features, survived)
   from
     ${source}
-  where survived = 0
-  union all
+),
+train_oversampled as (
   select
     features
     , survived
   from
-    (
-      select
-        amplify(${oversample_pos_n_times}, features, survived) as (features, survived)
-      from
-        ${source}
-      where survived = 1
-    ) t0
+    amplified
+  CLUSTER BY rand(43)
 ),
 model_oversampled as (
   select

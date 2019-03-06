@@ -20,7 +20,7 @@ aggregated as (
 )
 -- DIGDAG_INSERT_LINE
 select
-  (kv[0] / (kv[0] + kv[1] * ${scale_pos_weight}.0)) / (kv[0] / (kv[0] + kv[1])) as downsampling_rate
+  (kv[0] / (kv[0] + kv[1] * ${oversample_pos_n_times}.0)) / (kv[0] / (kv[0] + kv[1])) as downsampling_rate
 from
   aggregated
 ;

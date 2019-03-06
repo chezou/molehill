@@ -2,8 +2,6 @@
 source: titanic
 dbname: ml_tips
 train_sample_rate: 0.8
-oversample_n_times: 3 # Multiply all samples with this scale. The value should be int
-#oversample_pos_n_times: 2 # Multiply positive samples with this scale. The value should be int.
 
 query_dir: queries
 
@@ -20,9 +18,6 @@ numerical_columns:
       imputer:
         strategy: "median" # median, mean, constant
         phase: "train" # train, test, or null (whole dataset to get stats)
-      normalizer:
-        strategy: "standardize"
-        phase: "train"
 
 categorical_columns:
   - columns:
@@ -34,25 +29,30 @@ categorical_columns:
         strategy: "constant"
         phase: "train"
         fill_value: "missing"
+        # quantify: true # Not implemented yet
 
 vectorizer:
   train_table: "train"
   test_table: "test"
-  # whole_table: "whole" # vectorize all data
+  # emit_null: true
+  # bias: true
 
 # Not implemented yet
 tuner:
   strategy: "gridsearch" # gridsearch, randomsearch, python
 
 trainer:
-  - name: "train_classifier"
-    model_table: "model"
+  - name: "train_randomforest_classifier"
+    model_table: "model_rf"
+    option: "-trees 15 -seed 31"
+    hashing: true
     # source_table: "train" # Set if you want to set specific table name
 
 predictor:
-  - name: "predict_classifier"
-    model_table: "model"
+  - name: "predict_randomforest_classifier"
+    model_table: "model_rf"
     output_table: "prediction"
+    hashing: true
     # target_table: "test" # Set if you want to set specific table name
 
 evaluator:
