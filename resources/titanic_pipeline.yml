@@ -21,7 +21,7 @@ numerical_columns:
         strategy: "median" # median, mean, constant
         phase: "train" # train, test, or null (whole dataset to get stats)
       normalizer:
-        strategy: "standardize"
+        strategy: "minmax"  # standardize, log1p, minmax
         phase: "train"
 
 categorical_columns:
@@ -46,14 +46,21 @@ tuner:
 
 trainer:
   - name: "train_classifier"
-    model_table: "model"
+    model_table: "model_lr"
     # source_table: "train" # Set if you want to set specific table name
+  - name: "train_randomforest_classifier"
+    model_table: "model_rf"
+    hashing: true
 
 predictor:
   - name: "predict_classifier"
-    model_table: "model"
-    output_table: "prediction"
+    model_table: "model_lr"
+    output_table: "prediction_lr"
     # target_table: "test" # Set if you want to set specific table name
+  - name: "predict_randomforest_classifier"
+    model_table: "model_rf"
+    output_table: "prediction_rf"
+    hashing: true
 
 evaluator:
   metrics:
