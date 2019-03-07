@@ -44,7 +44,8 @@ def train_randomforest_classifier(
         option: Optional[str] = None,
         bias: bool = False,
         hashing: bool = False,
-        oversample_pos_n_times: Optional[Union[int, str]] = None) -> str:
+        oversample_pos_n_times: Optional[Union[int, str]] = None,
+        **kwargs) -> str:
     """Build train_randomforest_classifier query
 
     Parameters
@@ -85,7 +86,8 @@ def train_randomforest_regressor(
         option: Optional[str] = None,
         bias: bool = False,
         hashing: bool = False,
-        oversample_pos_n_times: Optional[Union[int, str]] = None) -> str:
+        oversample_pos_n_times: Optional[Union[int, str]] = None,
+        **kwargs) -> str:
     """Build train_randomforest_classifier query
 
     Parameters
