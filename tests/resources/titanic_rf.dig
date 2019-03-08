@@ -75,18 +75,18 @@ _export:
   +train:
     +train_0:
       td>: queries/train_randomforest_classifier.sql
-      source: train
+      source: titanic_imputed_train
       create_table: model_rf
   +predict:
     +seq_0:
       +exec_predict:
         td>: queries/predict_randomforest_classifier.sql
-        target_table: test
+        target_table: titanic_imputed_test
         create_table: prediction
         model_table: model_rf
       +evaluate:
         td>: queries/evaluate.sql
-        actual: test
+        actual: titanic_imputed_test
         predicted_table: prediction
         predicted_column: probability
         store_last_results: true

@@ -11,6 +11,7 @@ from .preprocessing import downsampling_rate
 from .evaluation import evaluate
 from .stats import compute_stats, combine_train_test_stats
 from .utils import build_query
+from .model import TREE_TRAIN_MODELS, TREE_PREDICT_MODELS
 
 
 def _represent_odict(dumper, instance):
@@ -31,8 +32,6 @@ class Pipeline:
     def __init__(self):
         self.comp_stats_task = None
         self.combine_stats_path = None
-        self.vectorize_target_train = None
-        self.vectorize_target_test = None
         self.workflow_path = None
         self.query_dir = None
         self.columns = []
@@ -246,16 +245,18 @@ class Pipeline:
             self,
             config: Dict[str, Any],
             mod: object,
-            train_table: str) -> OrderedDict:
+            train_table: str,
+            vectorize_target_train: str) -> OrderedDict:
 
         func_name = config.pop('name')
         train_func = getattr(mod, func_name)
+        _train_table = train_table
 
-        if func_name == 'train_randomforest_classifier' and config.pop('guess_attrs', None):
-            from .model import extract_attrs
-            _opt = config.get('option', '')
-            _opt += ' ' + extract_attrs(self.categorical_columns, self.numerical_columns)
-            config['option'] = _opt
+        sparse = config.get('sparse', None)
+        if func_name in TREE_TRAIN_MODELS and not sparse:
+            config['categorical_columns'] = self.categorical_columns
+            config['numerical_columns'] = self.numerical_columns
+            _train_table = vectorize_target_train
 
         model_table = config.pop('model_table', "model")
         train_query = train_func(**dict(config, **{"target": self.target_column}))
@@ -264,7 +265,7 @@ class Pipeline:
 
         return od({
             "td>": str(_query_path),
-            "source": train_table,
+            "source": _train_table,
             "create_table": model_table,
         })
 
@@ -292,15 +293,23 @@ class Pipeline:
             pred_idx: int,
             test_table: str,
             metrics: List[str],
+            vectorize_target_test: str,
             multiple_predictors: bool = False) -> OrderedDict:
 
         func_name = config.pop('name')
         pred_func = getattr(mod, func_name)
+        _test_table = test_table
 
         default_table = "prediction" if multiple_predictors else f"prediction_{pred_idx}"
         predict_table = config.pop("output_table", default_table)
-        test_table = config.pop("target_table", test_table)
+        _test_table = config.pop("target_table", test_table)
         model_table = config.pop("model_table", "model")
+
+        sparse = config.get('sparse', None)
+        if func_name in TREE_PREDICT_MODELS and not sparse:
+            config['categorical_columns'] = self.categorical_columns
+            config['numerical_columns'] = self.numerical_columns
+            _test_table = vectorize_target_test
 
         predict_query, predicted_col = pred_func(**dict(config, **{"id_column": self.id_column}))
         _query_path = self.query_dir / f"{func_name}.sql"
@@ -312,13 +321,13 @@ class Pipeline:
         return od({
             "+exec_predict": od({
                 "td>": str(_query_path),
-                "target_table": test_table,
+                "target_table": _test_table,
                 "create_table": predict_table,
                 "model_table": model_table
             }),
             "+evaluate": od({
                 "td>": str(self.query_dir / "evaluate.sql"),
-                "actual": test_table,
+                "actual": _test_table,
                 "predicted_table": predict_table,
                 "predicted_column": predicted_col,
                 "store_last_results": True
@@ -444,7 +453,8 @@ class Pipeline:
             elif oversample_pos_n_times and trainer.get('oversample_pos_n_times') is None:
                 trainer['oversample_pos_n_times'] = "${oversample_pos_n_times}"
 
-            train_tasks[f"+train_{train_idx}"] = self._build_train_task(trainer, mod, train_table)
+            train_tasks[f"+train_{train_idx}"] = self._build_train_task(
+                trainer, mod, train_table, vectorize_target_train)
             train_idx += 1
 
         if train_idx > 1:
@@ -475,7 +485,7 @@ class Pipeline:
                 predictor['oversample_pos_n_times'] = "${oversample_pos_n_times}"
 
             pred_tasks[f"+seq_{pred_idx}"] = self._build_predict_and_eval_task(
-                predictor, mod, pred_idx, test_table, metrics, len(predictors) == 1)
+                predictor, mod, pred_idx, test_table, metrics, vectorize_target_test, len(predictors) == 1)
 
             pred_idx += 1
 

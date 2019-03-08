@@ -6,7 +6,7 @@ with ensembled as (
     select
       t.rowid,
       p.model_weight,
-      tree_predict(p.model_id, p.model, feature_hashing(t.features), "-classification") as predicted
+      tree_predict(p.model_id, p.model, array(t.age, t.fare, mhash(t.embarked), mhash(t.sex), mhash(t.pclass)), "-classification") as predicted
     from (
       select
         model_id, model_weight, model

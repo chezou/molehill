@@ -13,7 +13,8 @@ def base_model(function: str,
                hashing: bool = False,
                with_clause: bool = False,
                oversample_pos_n_times: Optional[Union[int, str]] = None,
-               oversample_n_times: Optional[Union[int, str]] = None) -> str:
+               oversample_n_times: Optional[Union[int, str]] = None,
+               features: str = "features") -> str:
     """Build model query
 
     Parameters
@@ -39,6 +40,8 @@ def base_model(function: str,
         Scale for oversampling positive class. This option and oversample_n_times are exclusive.
     oversample_n_times : int or :obj:`str`, optional
         Scale for oversampling train data. This option and oversample_pos_n_times are exclusive.
+    features : :obj:`str`
+        A string represents features. Default: "features"
 
     Returns
     --------
@@ -57,17 +60,17 @@ def base_model(function: str,
         _source_table = "train_oversampled"
         _without_semicolon = True
 
-    _features = "features"
+    _features = features
     _features = f"feature_hashing({_features})" if hashing else _features
     _features = f"add_bias({_features})" if bias else _features
 
-    select_clause = textwrap.dedent("""\
+    select_clause = textwrap.dedent(f"""\
     {function}(
-      {features}
+      {_features}
       , {target}
-    """.format_map({"function": function, "features": _features, "target": target}))
-    select_clause += f"  , '{option}'\n" if option else ""
-    _as = f" as ({storage_format})" if storage_format else ""
+    """)
+    select_clause += f"  , '{option}'\n" if option else ''
+    _as = f" as ({storage_format})" if storage_format else ''
     select_clause += f"){_as}"
 
     _query = build_query([select_clause], _source_table, without_semicolon=_without_semicolon)  # type: str
@@ -77,19 +80,19 @@ def base_model(function: str,
 
     if oversample_pos_n_times:
         _with_clause = build_query(
-            ["features", target],
+            [features, target],
             source_table,
             condition=f"where {target} = 0",
             without_semicolon=True)
         _with_clause += "\nunion all\n"
 
         _oversample_query = build_query(
-            [f"amplify({oversample_pos_n_times}, features, {target}) as (features, {target})"],
+            [f"amplify({oversample_pos_n_times}, {features}, {target}) as (features, {target})"],
             source_table,
             condition=f"where {target} = 1",
             without_semicolon=True)
         _with_clause += build_query(
-            ["features", target],
+            [features, target],
             f"(\n{textwrap.indent(_oversample_query, '  ')}\n) t0",
             without_semicolon=True)
         _with_clauses["train_oversampled"] = _with_clause
@@ -97,12 +100,12 @@ def base_model(function: str,
 
     elif oversample_n_times:
         _with_clauses["amplified"] = build_query(
-            [f"amplify({oversample_n_times}, features, {target}) as (features, {target})"],
+            [f"amplify({oversample_n_times}, {features}, {target}) as (features, {target})"],
             source_table,
             without_semicolon=True)
 
         _with_clauses["train_oversampled"] = build_query(
-            ["features", target],
+            [features, target],
             "amplified",
             condition="CLUSTER BY rand(43)",
             without_semicolon=True)
