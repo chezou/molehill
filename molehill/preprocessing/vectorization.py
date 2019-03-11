@@ -1,5 +1,5 @@
 from textwrap import indent
-from typing import List, Optional
+from typing import List, Optional, Union
 from ..utils import build_query
 
 
@@ -18,7 +18,7 @@ def vectorize(
         emit_null: bool = False,
         force_value: bool = False,
         dense: bool = False,
-        feature_cardinality: Optional[int] = None) -> str:
+        feature_cardinality: Optional[Union[int, str]] = None) -> str:
     """Build vectorization query before training or prediction.
 
     Parameters
@@ -46,7 +46,7 @@ def vectorize(
         Force to output value as 1 for categorical columns. Default: False
     dense : bool
         Create dense feature vector. Default: False
-    feature_cardinality : int, optional
+    feature_cardinality : int or :obj:`str`, optional
         Max feature size for feature hashing.
 
     Returns
@@ -146,7 +146,7 @@ def _build_feature_array_dense(
         categorical_columns: List[str],
         numerical_columns: List[str],
         hashing: bool = False,
-        feature_cardinality: Optional[int] = None):
+        feature_cardinality: Optional[Union[int, str]] = None):
 
     target_columns = numerical_columns
 

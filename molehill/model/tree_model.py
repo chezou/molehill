@@ -5,6 +5,10 @@ from .base import base_model
 from ..utils import build_query
 
 
+TREE_MODEL_TRAINERS = ['train_randomforest_classifier', 'train_randomforest_regressor']
+TREE_MODEL_PREDICTORS = ['predict_randomforest_classifier', 'predict_randomforest_regressor']
+
+
 def extract_attrs(categorical_columns: List[str], numerical_columns: List[str]) -> str:
     attr_list = ['Q'] * len(numerical_columns) + ['C'] * len(categorical_columns)
     return f"-attrs {','.join(attr_list)}"
