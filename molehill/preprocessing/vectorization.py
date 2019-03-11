@@ -1,4 +1,4 @@
-import textwrap
+from textwrap import indent
 from typing import List, Optional
 from ..utils import build_query
 
@@ -16,7 +16,9 @@ def vectorize(
         bias: bool = False,
         hashing: bool = False,
         emit_null: bool = False,
-        force_value: bool = False) -> str:
+        force_value: bool = False,
+        dense: bool = False,
+        feature_cardinality: Optional[int] = None) -> str:
     """Build vectorization query before training or prediction.
 
     Parameters
@@ -42,6 +44,10 @@ def vectorize(
         Ensure feature entity size equally with emitting Null or 0. Default: False
     force_value : bool
         Force to output value as 1 for categorical columns. Default: False
+    dense : bool
+        Create dense feature vector. Default: False
+    feature_cardinality : int, optional
+        Max feature size for feature hashing.
 
     Returns
     -------
@@ -58,12 +64,27 @@ def vectorize(
     if not numerical_columns:
         numerical_columns = []
 
-    feature_query = _feature_column_query(
-        categorical_columns, numerical_columns, emit_null=emit_null, force_value=force_value)
+    if dense:
+        feature_query = _build_feature_array_dense(
+            categorical_columns, numerical_columns, hashing=hashing, feature_cardinality=feature_cardinality)
+        feature_query += f" as {features}"
 
-    feature_query = "feature_hashing(\n{}\n)".format(textwrap.indent(feature_query, "  ")) if hashing else feature_query
-    feature_query = "add_bias(\n{}\n)".format(textwrap.indent(feature_query, "  ")) if bias else feature_query
-    feature_query += f" as {features}"
+    else:
+        feature_query = _feature_column_query(
+            categorical_columns, numerical_columns, emit_null=emit_null, force_value=force_value)
+
+        if hashing:
+            _cardinality = ''
+            if feature_cardinality:
+                _cardinality = f"\n, '-num_features {feature_cardinality}'"
+                _cardinality = indent(_cardinality, '  ')
+
+            feature_query = f"feature_hashing(\n{indent(feature_query, '  ')}{_cardinality}\n)"
+
+        if bias:
+            feature_query = "add_bias(\n{}\n)".format(indent(feature_query, "  "))
+
+        feature_query += f" as {features}"
 
     query = build_query(
         [id_column, feature_query, target_column],
@@ -116,9 +137,28 @@ def _build_feature_array(
 
     return "{func}_features(\n{query}\n{option})".format_map({
         "func": FEATURE_FUNC_MAP[ctype],
-        "query": textwrap.indent(_query, "  "),
-        "option": textwrap.indent(_option, "  ")
+        "query": indent(_query, "  "),
+        "option": indent(_option, "  ")
     })
+
+
+def _build_feature_array_dense(
+        categorical_columns: List[str],
+        numerical_columns: List[str],
+        hashing: bool = False,
+        feature_cardinality: Optional[int] = None):
+
+    target_columns = numerical_columns
+
+    if hashing:
+        _feature_size = f", {feature_cardinality}" if feature_cardinality else ''
+        target_columns += [f"mhash({e}{_feature_size})" for e in categorical_columns]
+    else:
+        target_columns += categorical_columns
+
+    _query = f"array({', '.join(target_columns)})"
+
+    return _query
 
 
 def _feature_column_query(
@@ -157,14 +197,14 @@ def _feature_column_query(
 
     if exists_numerical:
         feature_array = _build_feature_array(numerical_columns, "numerical", emit_null)
-        _query += textwrap.indent(feature_array, "  ") if both_column_type else feature_array
+        _query += indent(feature_array, "  ") if both_column_type else feature_array
 
     if both_column_type:
         _query += ",\n"
 
     if exists_categorical:
         feature_array = _build_feature_array(categorical_columns, "categorical", emit_null, force_value)
-        _query += textwrap.indent(feature_array, "  ") if both_column_type else feature_array
+        _query += indent(feature_array, "  ") if both_column_type else feature_array
 
     if both_column_type:
         _query += "\n)"
