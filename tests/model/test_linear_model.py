@@ -1,10 +1,12 @@
+import molehill
 from molehill.model import train_classifier, train_regressor
 from molehill.model import predict_classifier, predict_regressor
 
 
 class TestTrainClassifier:
     def test_train_classifier(self):
-        ret_sql = """\
+        ret_sql = f"""\
+-- molehill/{molehill.__version__}
 select
   train_classifier(
     features
@@ -18,7 +20,8 @@ from
         assert train_classifier("src_tbl", "target_val") == ret_sql
 
     def test_train_classifier_pos_oversampling(self):
-        ret_sql = """\
+        ret_sql = f"""\
+-- molehill/{molehill.__version__}
 with train_oversampled as (
   select
     features
@@ -33,7 +36,7 @@ with train_oversampled as (
   from
     (
       select
-        amplify(${oversample_pos_n_times}, features, target_val) as (features, target_val)
+        amplify(${{oversample_pos_n_times}}, features, target_val) as (features, target_val)
       from
         src_tbl
       where target_val = 1
@@ -62,10 +65,11 @@ group by
         assert train_classifier("src_tbl", "target_val", oversample_pos_n_times="${oversample_pos_n_times}") == ret_sql
 
     def test_train_classifier_oversampling(self):
-        ret_sql = """\
+        ret_sql = f"""\
+-- molehill/{molehill.__version__}
 with amplified as (
   select
-    amplify(${oversample_n_times}, features, target_val) as (features, target_val)
+    amplify(${{oversample_n_times}}, features, target_val) as (features, target_val)
   from
     src_tbl
 ),
@@ -100,7 +104,8 @@ group by
         assert train_classifier("src_tbl", "target_val", oversample_n_times="${oversample_n_times}") == ret_sql
 
     def test_train_classifier_bias(self):
-        ret_sql = """\
+        ret_sql = f"""\
+-- molehill/{molehill.__version__}
 select
   train_classifier(
     add_bias(features)
@@ -114,7 +119,8 @@ from
         assert train_classifier("src_tbl", "target_val", bias=True) == ret_sql
 
     def test_train_classifier_hashing(self):
-        ret_sql = """\
+        ret_sql = f"""\
+-- molehill/{molehill.__version__}
 select
   train_classifier(
     feature_hashing(features)
@@ -128,7 +134,8 @@ from
         assert train_classifier("src_tbl", "target_val", hashing=True) == ret_sql
 
     def test_train_classifier_bias_hashing(self):
-        ret_sql = """\
+        ret_sql = f"""\
+-- molehill/{molehill.__version__}
 select
   train_classifier(
     add_bias(feature_hashing(features))
@@ -143,7 +150,8 @@ from
 
 
 def test_train_regressor():
-    ret_sql = """\
+    ret_sql = f"""\
+-- molehill/{molehill.__version__}
 select
   train_regressor(
     features
@@ -159,7 +167,8 @@ from
 
 class TestPredictClassifier:
     def test_predict_classifier(self):
-        ret_sql = """\
+        ret_sql = f"""\
+-- molehill/{molehill.__version__}
 with features_exploded as (
   select
     id
@@ -186,7 +195,8 @@ group by
         assert pred_col == "probability"
 
     def test_predict_classifier_bias(self):
-        ret_sql = """\
+        ret_sql = f"""\
+-- molehill/{molehill.__version__}
 with features_exploded as (
   select
     id
@@ -213,7 +223,8 @@ group by
         assert pred_col == "probability"
 
     def test_predict_classifier_hashing(self):
-        ret_sql = """\
+        ret_sql = f"""\
+-- molehill/{molehill.__version__}
 with features_exploded as (
   select
     id
@@ -240,7 +251,8 @@ group by
         assert pred_col == "probability"
 
     def test_predict_classifier_bias_hashing(self):
-        ret_sql = """\
+        ret_sql = f"""\
+-- molehill/{molehill.__version__}
 with features_exploded as (
   select
     id
@@ -267,7 +279,8 @@ group by
         assert pred_col == "probability"
 
     def test_predict_classifier_wo_sigmoid(self):
-        ret_sql = """\
+        ret_sql = f"""\
+-- molehill/{molehill.__version__}
 with features_exploded as (
   select
     id
@@ -296,7 +309,8 @@ group by
 
 class TestPredictRegressor:
     def test_predict_regressor(self):
-        ret_sql = """\
+        ret_sql = f"""\
+-- molehill/{molehill.__version__}
 with features_exploded as (
   select
     id
@@ -323,7 +337,8 @@ group by
         assert pred_col == "target"
 
     def test_predict_regressor_bias(self):
-        ret_sql = """\
+        ret_sql = f"""\
+-- molehill/{molehill.__version__}
 with features_exploded as (
   select
     id
@@ -350,7 +365,8 @@ group by
         assert pred_col == "target"
 
     def test_predict_regressor_hashing(self):
-        ret_sql = """\
+        ret_sql = f"""\
+-- molehill/{molehill.__version__}
 with features_exploded as (
   select
     id
@@ -377,7 +393,8 @@ group by
         assert pred_col == "target"
 
     def test_predict_regressor_bias_hashing(self):
-        ret_sql = """\
+        ret_sql = f"""\
+-- molehill/{molehill.__version__}
 with features_exploded as (
   select
     id

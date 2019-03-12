@@ -1,10 +1,12 @@
 import pytest
+import molehill
 from molehill.evaluation import evaluate
 
 
 def test_evaluate_with_auc():
     metrics = ['auc', 'logloss']
-    ret_sql = """\
+    ret_sql = f"""\
+-- molehill/{molehill.__version__}
 select
   auc(predicted, target) as auc
   , logloss(predicted, target) as logloss
@@ -26,7 +28,8 @@ from
 
 def test_evaluate_without_auc():
     metrics = ['logloss']
-    ret_sql = """\
+    ret_sql = f"""\
+-- molehill/{molehill.__version__}
 select
   logloss(p.predicted, t.target) as logloss
 from
@@ -40,7 +43,9 @@ join
 
 def test_evaluate_fmeasure():
     metrics = ['fmeasure']
-    ret_sql = """select
+    ret_sql = f"""\
+-- molehill/{molehill.__version__}
+select
   fmeasure(t.target, p.predicted) as fmeasure
 from
   prediction p

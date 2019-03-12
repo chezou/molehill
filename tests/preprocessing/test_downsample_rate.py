@@ -1,8 +1,10 @@
+import molehill
 from molehill.preprocessing import downsampling_rate
 
 
 def test_downsampling_rate():
-    ret_sql = """\
+    ret_sql = f"""\
+-- molehill/{molehill.__version__}
 with label_count as (
   select
     label
@@ -20,7 +22,7 @@ aggregated as (
 )
 -- DIGDAG_INSERT_LINE
 select
-  (kv[0] / (kv[0] + kv[1] * ${oversample_pos_n_times}.0)) / (kv[0] / (kv[0] + kv[1])) as downsampling_rate
+  (kv[0] / (kv[0] + kv[1] * ${{oversample_pos_n_times}}.0)) / (kv[0] / (kv[0] + kv[1])) as downsampling_rate
 from
   aggregated
 ;

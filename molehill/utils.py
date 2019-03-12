@@ -1,4 +1,5 @@
 import textwrap
+import molehill
 from collections import OrderedDict
 from typing import List, Optional
 
@@ -6,7 +7,7 @@ from typing import List, Optional
 def build_query(select_clauses: List[str],
                 source: str,
                 condition: Optional[str] = None,
-                without_semicolon: Optional[bool] = None,
+                without_semicolon: bool = False,
                 with_clauses: Optional[OrderedDict] = None) -> str:
     """Build query from partial select clauses
 
@@ -18,8 +19,9 @@ def build_query(select_clauses: List[str],
         Source table name.
     condition : :obj:`str`, optional
         Condition like where clause.
-    without_semicolon : bool, optional
-        Whether put semicolon to end of the query or not.
+    without_semicolon : bool
+        Whether put semicolon to end of the query or not. Default: False
+        It also suppresses header.
     with_clauses : :obj:`dict`, optional
         Key is a temporary table name and value is a with clause.
 
@@ -45,6 +47,10 @@ def build_query(select_clauses: List[str],
         raise ValueError("select_clauses must be list of str")
 
     query = ""
+
+    # Add header
+    if not without_semicolon:
+        query += f"-- molehill/{molehill.__version__}\n"
 
     if not with_clauses:
         with_clauses = OrderedDict()

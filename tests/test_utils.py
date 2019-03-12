@@ -1,8 +1,10 @@
+import molehill
 from molehill.utils import build_query
 
 
 def test_build_query():
-    ret_sql = """\
+    ret_sql = f"""\
+-- molehill/{molehill.__version__}
 select
   col1
   , col2
@@ -14,7 +16,7 @@ from
 
 
 def test_build_query_without_semicolon():
-    ret_sql = """\
+    ret_sql = f"""\
 select
   col1
   , col2
@@ -24,7 +26,8 @@ from
 
 
 def test_build_query_with_condition():
-    ret_sql = """\
+    ret_sql = f"""\
+-- molehill/{molehill.__version__}
 select
   col1
   , col2
@@ -39,7 +42,8 @@ where
 
 
 def test_build_query_with_clause():
-    ret_sql = """\
+    ret_sql = f"""\
+-- molehill/{molehill.__version__}
 with test as (
   select
     col3

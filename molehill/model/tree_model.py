@@ -188,39 +188,24 @@ def _build_prediction_query(
     _features = "t.features"
     _features = f"feature_hashing({_features})" if hashing else _features
 
-    query = textwrap.dedent("""\
-    with ensembled as (
-      select
-        {id},
-        rf_ensemble(predicted.value, predicted.posteriori, model_weight) as predicted
-      from (
-        select
-          t.{id},
-          p.model_weight,
-          tree_predict(p.model_id, p.model, {features}{classification}) as predicted
-        from (
-          select
-            model_id, model_weight, model
-          from
-            {model_table}
-          DISTRIBUTE BY rand(1)
-        ) p
-        left outer join {target_table} t
-      ) t1
-      group by
-        {id}
-    )
-    -- DIGDAG_INSERT_LINE
-    select
-      {id},
-      predicted.label,
-      predicted.probabilities[1] as probability
-    from
-      ensembled
-    ;
-    """).format_map({"id": id_column, "model_table": model_table, "target_table": target_table, "features": _features,
-                    "classification": ', "-classification"' if classification else ''})
-
+    _with_clauses = OrderedDict()
+    _with_clauses['p'] = build_query(
+        ["model_id", "model_weight", "model"], model_table,
+        condition="DISTRIBUTE BY rand(1)", without_semicolon=True)
+    _classification = ', "-classification"' if classification else ''
+    _with_clauses['t1'] = build_query(
+        [f"t.{id_column}",
+         "p.model_weight",
+         f"tree_predict(p.model_id, p.model, {_features}{_classification}) as predicted"],
+        "p",
+        condition=f"left outer join {target_table} t", without_semicolon=True)
+    _with_clauses['ensembled'] = build_query(
+        [id_column, "rf_ensemble(predicted.value, predicted.posteriori, model_weight) as predicted"],
+        "t1",
+        condition=f"group by\n  {id_column}", without_semicolon=True)
+    query = build_query(
+        [id_column, "predicted.label", "predicted.probabilities[1] as probability"],
+        "ensembled", with_clauses=_with_clauses)
     return query
 
 

@@ -1,8 +1,10 @@
+import molehill
 from molehill.stats import compute_stats, combine_train_test_stats
 
 
 def test_compute_stats():
-    ret_sql = """\
+    ret_sql = f"""\
+-- molehill/{molehill.__version__}
 select
   avg(col1) as col1_mean
   , stddev_pop(col1) as col1_std
@@ -26,7 +28,8 @@ from
 
 
 def test_combine_train_test_stats():
-    ret_sql = """\
+    ret_sql = f"""\
+-- molehill/{molehill.__version__}
 select
   train.col1_mean as col1_mean_train
   , train.col1_std as col1_std_train

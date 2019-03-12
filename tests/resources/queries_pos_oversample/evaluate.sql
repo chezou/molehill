@@ -1,3 +1,4 @@
+-- molehill/0.0.1
 select
   auc(${predicted_column}, survived) as auc
   , logloss(${predicted_column}, survived) as logloss
