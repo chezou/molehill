@@ -135,6 +135,35 @@ from
     assert vectorize('src_tbl', 'target', cat_cols, num_cols, hashing=True) == ret_sql
 
 
+def test_vectorize_with_hashing_cardinality(cat_cols, num_cols):
+    ret_sql = """\
+select
+  rowid
+  , feature_hashing(
+    array_concat(
+      quantitative_features(
+        array("num1", "num2")
+        , num1
+        , num2
+      ),
+      categorical_features(
+        array("cat1", "cat2", "cat3")
+        , cat1
+        , cat2
+        , cat3
+      )
+    )
+    , '-num_features 100'
+  ) as features
+  , target
+from
+  src_tbl
+;
+"""
+
+    assert vectorize('src_tbl', 'target', cat_cols, num_cols, hashing=True, feature_cardinality=100) == ret_sql
+
+
 def test_vectorize_with_bias_hashing(cat_cols, num_cols):
     ret_sql = """\
 select
@@ -246,3 +275,46 @@ from
 """
 
     assert vectorize('src_tbl', 'target', cat_cols, num_cols, emit_null=True, force_value=True) == ret_sql
+
+
+def test_vectorize_dense(cat_cols, num_cols):
+    ret_sql = """\
+select
+  rowid
+  , array(num1, num2, cat1, cat2, cat3) as features
+  , target
+from
+  src_tbl
+;
+"""
+
+    assert vectorize('src_tbl', 'target', cat_cols, num_cols, dense=True) == ret_sql
+
+
+def test_vectorize_dense_with_hashing(cat_cols, num_cols):
+    ret_sql = """\
+select
+  rowid
+  , array(num1, num2, mhash(cat1), mhash(cat2), mhash(cat3)) as features
+  , target
+from
+  src_tbl
+;
+"""
+
+    assert vectorize('src_tbl', 'target', cat_cols, num_cols, dense=True, hashing=True) == ret_sql
+
+
+def test_vectorize_dense_with_hashing_cardinality(cat_cols, num_cols):
+    ret_sql = """\
+select
+  rowid
+  , array(num1, num2, mhash(cat1, 100), mhash(cat2, 100), mhash(cat3, 100)) as features
+  , target
+from
+  src_tbl
+;
+"""
+
+    assert vectorize('src_tbl', 'target', cat_cols, num_cols,
+                     dense=True, hashing=True, feature_cardinality=100) == ret_sql

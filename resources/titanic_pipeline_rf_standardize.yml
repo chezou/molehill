@@ -1,0 +1,66 @@
+# Same example with https://scikit-learn.org/stable/auto_examples/compose/plot_column_transformer_mixed_types.html
+source: titanic
+dbname: ml_tips
+train_sample_rate: 0.8
+
+query_dir: queries_std
+
+id_column: "rowid"
+target_column: "survived"
+
+#stratify: true
+
+numerical_columns:
+  - columns:
+      - "age"
+      - "fare"
+    transformer:
+      imputer:
+        strategy: "median" # median, mean, constant
+        phase: "train" # train, test, or null (whole dataset to get stats)
+      normalizer:
+        strategy: "standardize"  # standardize, log1p, minmax
+        phase: "train"
+
+categorical_columns:
+  - columns:
+      - "embarked"
+      - "sex"
+      - "pclass"
+    transformer:
+      imputer:
+        strategy: "constant"
+        phase: "train"
+        fill_value: "missing"
+        # quantify: true # Not implemented yet
+
+vectorizer:
+  train_table: "train"
+  test_table: "test"
+  # emit_null: true
+  # bias: true
+  dense:
+    mode: "auto" # auto or force. Default: auto
+    hashing: true # true or false. Default: true
+    feature_cardinality: "auto" # "auto" or integer, which represents maximum cardinality of categorical columns
+
+# Not implemented yet
+tuner:
+  strategy: "gridsearch" # gridsearch, randomsearch, python
+
+trainer:
+  - name: "train_randomforest_classifier"
+    model_table: "model_rf"
+    option: "-trees 15 -seed 31"
+    # source_table: "train" # Set if you want to set specific table name
+
+predictor:
+  - name: "predict_randomforest_classifier"
+    model_table: "model_rf"
+    output_table: "prediction"
+    # target_table: "test" # Set if you want to set specific table name
+
+evaluator:
+  metrics:
+    - auc
+    - logloss
