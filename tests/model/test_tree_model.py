@@ -106,42 +106,6 @@ from
         assert pred_sql == ret_sql
         assert pred_col == "probability"
 
-    def test_predict_randomforest_classifier_bias(self):
-        ret_sql = """\
-with ensembled as (
-  select
-    id,
-    rf_ensemble(predicted.value, predicted.posteriori, model_weight) as predicted
-  from (
-    select
-      t.id,
-      p.model_weight,
-      tree_predict(p.model_id, p.model, add_bias(t.features), "-classification") as predicted
-    from (
-      select
-        model_id, model_weight, model
-      from
-        model_tbl
-      DISTRIBUTE BY rand(1)
-    ) p
-    left outer join target_tbl t
-  ) t1
-  group by
-    id
-)
--- DIGDAG_INSERT_LINE
-select
-  id,
-  predicted.label,
-  predicted.probabilities[1] as probability
-from
-  ensembled
-;
-"""
-        pred_sql, pred_col = predict_randomforest_classifier("target_tbl", "id", "model_tbl", bias=True)
-        assert pred_sql == ret_sql
-        assert pred_col == "probability"
-
     def test_predict_randomforest_classifier_hashing(self):
         ret_sql = """\
 with ensembled as (
@@ -175,42 +139,6 @@ from
 ;
 """
         pred_sql, pred_col = predict_randomforest_classifier("target_tbl", "id", "model_tbl", hashing=True)
-        assert pred_sql == ret_sql
-        assert pred_col == "probability"
-
-    def test_predict_randomforest_classifier_bias_hashing(self):
-        ret_sql = """\
-with ensembled as (
-  select
-    id,
-    rf_ensemble(predicted.value, predicted.posteriori, model_weight) as predicted
-  from (
-    select
-      t.id,
-      p.model_weight,
-      tree_predict(p.model_id, p.model, add_bias(feature_hashing(t.features)), "-classification") as predicted
-    from (
-      select
-        model_id, model_weight, model
-      from
-        model_tbl
-      DISTRIBUTE BY rand(1)
-    ) p
-    left outer join target_tbl t
-  ) t1
-  group by
-    id
-)
--- DIGDAG_INSERT_LINE
-select
-  id,
-  predicted.label,
-  predicted.probabilities[1] as probability
-from
-  ensembled
-;
-"""
-        pred_sql, pred_col = predict_randomforest_classifier("target_tbl", "id", "model_tbl", bias=True, hashing=True)
         assert pred_sql == ret_sql
         assert pred_col == "probability"
 

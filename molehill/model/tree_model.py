@@ -19,7 +19,6 @@ def _base_train_query(
         source_table: str,
         target: str,
         option: Optional[str],
-        bias: bool = False,
         hashing: bool = False,
         oversample_pos_n_times: Optional[Union[int, str]] = None) -> str:
 
@@ -29,7 +28,6 @@ def _base_train_query(
         target,
         source_table,
         option,
-        bias=bias,
         hashing=hashing,
         with_clause=True,
         oversample_pos_n_times=oversample_pos_n_times)
@@ -46,7 +44,6 @@ def train_randomforest_classifier(
         source_table: str = "${source}",
         target: str = "label",
         option: Optional[str] = None,
-        bias: bool = False,
         hashing: bool = False,
         oversample_pos_n_times: Optional[Union[int, str]] = None,
         **kwargs) -> str:
@@ -61,8 +58,6 @@ def train_randomforest_classifier(
         Target column for prediction
     option : :obj:`str`, optional
         An option string for specific algorithm.
-    bias : bool
-        Add bias or not. Default: False
     hashing : bool
         Execute feature hashing. Default: False
     oversample_pos_n_times : int or :obj:`str`, optional
@@ -79,7 +74,6 @@ def train_randomforest_classifier(
         source_table,
         target,
         option,
-        bias,
         hashing,
         oversample_pos_n_times)
 
@@ -88,7 +82,6 @@ def train_randomforest_regressor(
         source_table: str = "${source}",
         target: str = "label",
         option: Optional[str] = None,
-        bias: bool = False,
         hashing: bool = False,
         oversample_pos_n_times: Optional[Union[int, str]] = None,
         **kwargs) -> str:
@@ -103,8 +96,6 @@ def train_randomforest_regressor(
         Source table name. Default: "training"
     option : :obj:`str`, optional
         An option string for specific algorithm.
-    bias : bool
-        Add bias or not. Default: False
     hashing : bool
         Execute feature hashing. Default: False
     oversample_pos_n_times : int or :obj:`str`, optional
@@ -121,7 +112,6 @@ def train_randomforest_regressor(
         source_table,
         target,
         option,
-        bias,
         hashing,
         oversample_pos_n_times)
 
@@ -131,12 +121,10 @@ def _build_prediction_query(
         id_column: str,
         model_table: str,
         classification: bool = False,
-        bias: bool = False,
         hashing: bool = False) -> str:
 
     _features = "t.features"
     _features = f"feature_hashing({_features})" if hashing else _features
-    _features = f"add_bias({_features})" if bias else _features
 
     query = textwrap.dedent("""\
     with ensembled as (
@@ -178,7 +166,6 @@ def predict_randomforest_classifier(
         target_table: str = "${target_table}",
         id_column: str = "rowid",
         model_table: str = "${model_table}",
-        bias: bool = False,
         hashing: bool = False) -> Tuple[str, str]:
     """Build prediction query for randomforest classifier.
 
@@ -190,8 +177,6 @@ def predict_randomforest_classifier(
         Id column name. Default: "rowid"
     model_table : :obj:`str`
         Model table name.
-    bias : bool
-        Add bias or not. Default: False
     hashing : bool
         Execute feature hashing. Default: False
 
@@ -204,14 +189,13 @@ def predict_randomforest_classifier(
     """
 
     return _build_prediction_query(target_table, id_column, model_table,
-                                   classification=True, bias=bias, hashing=hashing), "probability"
+                                   classification=True, hashing=hashing), "probability"
 
 
 def predict_randomforest_regressor(
         target_table: str = "${target_table}",
         id_column: str = "rowid",
         model_table: str = "${model_table}",
-        bias: bool = False,
         hashing: bool = False) -> Tuple[str, str]:
     """Build prediction query for randomforest_regressor.
 
@@ -223,8 +207,6 @@ def predict_randomforest_regressor(
         Id column name. Default: "rowid"
     model_table : :obj:`str`
         Model table name.
-    bias : bool
-        Add bias or not. Default: False
     hashing : bool
         Execute feature hashing. Default: False
 
@@ -237,4 +219,4 @@ def predict_randomforest_regressor(
     """
 
     return _build_prediction_query(target_table, id_column, model_table,
-                                   bias=bias, hashing=hashing), "target"
+                                   hashing=hashing), "target"
