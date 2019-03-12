@@ -211,13 +211,11 @@ class Pipeline:
         self.save_query(query_path, cardinality_query)
 
         return od({
-            "+compute_cardinality": od({
                 "td>": query_path,
                 "engine": "presto",
                 "source": source,
                 "store_last_results": True
             })
-        })
 
     def _build_vectorize_task(
             self,
@@ -225,8 +223,7 @@ class Pipeline:
             source: str,
             source_train: str,
             source_test: str,
-            require_dense: bool = False,
-            hashing_tree: bool = False) -> Tuple[OrderedDict, str, str]:
+            require_dense: bool = False) -> Tuple[OrderedDict, str, str]:
 
         train_table = conf.pop("train_table", "train")
         test_table = conf.pop("test_table", "test")
@@ -267,7 +264,7 @@ class Pipeline:
             if feature_cardinality == 'auto':
                 feature_cardinality = "${td.last_results.max_categorical_cardinality} * 10"
 
-            additional_opt = {'dense': True}
+            additional_opt = {'dense': True}  # type: Dict[str, Union[str, bool]]
             if feature_cardinality:
                 additional_opt['feature_cardinality'] = "${feature_cardinality}"
             if hashing_tree:
@@ -308,11 +305,13 @@ class Pipeline:
         func_name = config.pop('name')
         train_func = getattr(mod, func_name)
 
-        if func_name in TREE_MODEL_TRAINERS and config.pop('guess_attrs', None):
-            from .model import extract_attrs
-            _opt = config.get('option', '')
-            _opt += ' ' + extract_attrs(self.categorical_columns, self.numerical_columns)
-            config['option'] = _opt
+        sparse = config.get('sparse', False)
+        if (func_name in TREE_MODEL_TRAINERS) and not sparse:
+            config['categorical_columns'] = self.categorical_columns
+            config['numerical_columns'] = self.numerical_columns
+
+            if not config.get('sparse', None):
+                train_table += "_dense"
 
         model_table = config.pop('model_table', "model")
         train_query = train_func(**dict(config, **{"target": self.target_column}))
@@ -354,6 +353,10 @@ class Pipeline:
         func_name = config.pop('name')
         pred_func = getattr(mod, func_name)
 
+        sparse = config.get('sparse', False)
+        if (func_name in TREE_MODEL_PREDICTORS) and not sparse:
+            test_table += "_dense"
+
         default_table = "prediction" if multiple_predictors else f"prediction_{pred_idx}"
         predict_table = config.pop("output_table", default_table)
         test_table = config.pop("target_table", test_table)
@@ -384,20 +387,13 @@ class Pipeline:
         })
 
     @staticmethod
-    def _require_dense_vector(config: OrderedDict) -> Tuple[bool, bool]:
+    def _require_dense_vector(config: OrderedDict) -> bool:
         trainers = config.get('trainer', None)
 
         if trainers is None:
-            return False, False
+            return False
 
-        exist_tree = False
-        hashing_tree = False
-        for trainer in trainers:
-            if trainer['name'] in TREE_MODEL_TRAINERS:
-                exist_tree = True
-                hashing_tree = trainer.get('hashing', False)
-
-        return exist_tree, hashing_tree
+        return any(trainer for trainer in trainers if trainer['name'] in TREE_MODEL_TRAINERS)
 
     def dump_pipeline(
             self,
@@ -461,7 +457,7 @@ class Pipeline:
         do_imputation = len(self.imputation_clauses) > 0
         do_normalization = len(self.normalization_clauses) > 0
 
-        require_dense_vector, hashing_tree = self._require_dense_vector(config)
+        require_dense_vector = self._require_dense_vector(config)
 
         vectorize_target_train = f"{source}_train"
         vectorize_target_test = f"{source}_test"
@@ -501,13 +497,13 @@ class Pipeline:
 
         workflow["+preparation"] = preparation
 
-        if require_dense_vector and hashing_tree:
+        if require_dense_vector:
             workflow["+compute_cardinality"] = self._build_cardinality_task(vectorize_target_train)
 
         workflow["+vectorization"], train_table, test_table = self._build_vectorize_task(
             config.get("vectorizer", {}), source=vectorize_target_whole,
             source_train=vectorize_target_train, source_test=vectorize_target_test,
-            require_dense=require_dense_vector, hashing_tree=hashing_tree)
+            require_dense=require_dense_vector)
 
         # Preparation for loading train/predict functions dynamically
         __import__('molehill.model')

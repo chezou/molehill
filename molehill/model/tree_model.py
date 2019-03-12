@@ -9,9 +9,20 @@ TREE_MODEL_TRAINERS = ['train_randomforest_classifier', 'train_randomforest_regr
 TREE_MODEL_PREDICTORS = ['predict_randomforest_classifier', 'predict_randomforest_regressor']
 
 
-def extract_attrs(categorical_columns: List[str], numerical_columns: List[str]) -> str:
+def _extract_attrs(categorical_columns: List[str], numerical_columns: List[str]) -> str:
     attr_list = ['Q'] * len(numerical_columns) + ['C'] * len(categorical_columns)
     return f"-attrs {','.join(attr_list)}"
+
+
+def _ensure_attrs(option: str, categorical_columns: List[str], numerical_columns: List[str]) -> str:
+    has_attrs = any(_opt in option for _opt in ['-attrs', '-attribute_types'])
+
+    if has_attrs:
+        return option
+    else:
+        if len(option) > 0:
+            option += ' '
+        return f"{option}{_extract_attrs(categorical_columns, numerical_columns)}"
 
 
 def _base_train_query(
@@ -20,24 +31,51 @@ def _base_train_query(
         target: str,
         option: Optional[str],
         hashing: bool = False,
-        oversample_pos_n_times: Optional[Union[int, str]] = None) -> str:
+        oversample_pos_n_times: Optional[Union[int, str]] = None,
+        sparse: bool = False,
+        categorical_columns: Optional[List[str]] = None,
+        numerical_columns: Optional[List[str]] = None) -> str:
 
-    with_clause = base_model(
-        func_name,
-        None,
-        target,
-        source_table,
-        option,
-        hashing=hashing,
-        with_clause=True,
-        oversample_pos_n_times=oversample_pos_n_times)
+    if sparse:
+        with_clause = base_model(
+            func_name,
+            None,
+            target,
+            source_table,
+            option,
+            hashing=hashing,
+            with_clause=True,
+            oversample_pos_n_times=oversample_pos_n_times)
 
-    # Need to avoid Map format due to TD limitation.
-    exploded_importance = "concat_ws(',', collect_set(concat(k1, ':', v1))) as var_importance"
-    view_cond = "lateral view explode(var_importance) t1 as k1, v1\ngroup by 1, 2, 3, 5, 6"
+        # Need to avoid Map format due to TD limitation.
+        exploded_importance = "concat_ws(',', collect_set(concat(k1, ':', v1))) as var_importance"
+        view_cond = "lateral view explode(var_importance) t1 as k1, v1\ngroup by 1, 2, 3, 5, 6"
 
-    return build_query(["model_id", "model_weight", "model", exploded_importance, "oob_errors", "oob_tests"],
-                       "models", view_cond, with_clauses=OrderedDict({"models": with_clause}))
+        return build_query(["model_id", "model_weight", "model", exploded_importance, "oob_errors", "oob_tests"],
+                           "models", view_cond, with_clauses=OrderedDict({"models": with_clause}))
+
+    else:
+        if categorical_columns is None and numerical_columns is None:
+            raise ValueError("Either categorical_columns or numerical_columns should not be None")
+
+        if categorical_columns is None:
+            categorical_columns = []
+
+        if numerical_columns is None:
+            numerical_columns = []
+
+        if option is None:
+            option = ''
+
+        option = _ensure_attrs(option, categorical_columns, numerical_columns)
+        return base_model(
+            func_name,
+            None,
+            target,
+            source_table,
+            option,
+            hashing=hashing,
+            oversample_pos_n_times=oversample_pos_n_times)
 
 
 def train_randomforest_classifier(
@@ -46,6 +84,9 @@ def train_randomforest_classifier(
         option: Optional[str] = None,
         hashing: bool = False,
         oversample_pos_n_times: Optional[Union[int, str]] = None,
+        sparse: bool = False,
+        categorical_columns: Optional[List[str]] = None,
+        numerical_columns: Optional[List[str]] = None,
         **kwargs) -> str:
     """Build train_randomforest_classifier query
 
@@ -62,6 +103,12 @@ def train_randomforest_classifier(
         Execute feature hashing. Default: False
     oversample_pos_n_times : int or :obj:`str`, optional
         Scale for oversampling positive class.
+    sparse : bool
+        Whether input vector is sparse or not. Default: False
+    categorical_columns : :obj:`list` of :obj:`str`, optional
+        List of categorical column names.
+    numerical_columns : :obj:`list` of :obj:`str`, optional
+        List of numerical column names.
 
     Returns
     --------
@@ -73,9 +120,12 @@ def train_randomforest_classifier(
         "train_randomforest_classifier",
         source_table,
         target,
-        option,
-        hashing,
-        oversample_pos_n_times)
+        option=option,
+        hashing=hashing,
+        oversample_pos_n_times=oversample_pos_n_times,
+        sparse=sparse,
+        categorical_columns=categorical_columns,
+        numerical_columns=numerical_columns)
 
 
 def train_randomforest_regressor(
@@ -84,6 +134,9 @@ def train_randomforest_regressor(
         option: Optional[str] = None,
         hashing: bool = False,
         oversample_pos_n_times: Optional[Union[int, str]] = None,
+        sparse: bool = False,
+        categorical_columns: Optional[List[str]] = None,
+        numerical_columns: Optional[List[str]] = None,
         **kwargs) -> str:
     """Build train_randomforest_classifier query
 
@@ -100,6 +153,12 @@ def train_randomforest_regressor(
         Execute feature hashing. Default: False
     oversample_pos_n_times : int or :obj:`str`, optional
         Scale for oversampling positive class.
+    sparse : bool
+        Whether input vector is sparse or not. Default: False
+    categorical_columns : :obj:`list` of :obj:`str`, optional
+        List of categorical column names.
+    numerical_columns : :obj:`list` of :obj:`str`, optional
+        List of numerical column names.
 
     Returns
     --------
@@ -111,9 +170,12 @@ def train_randomforest_regressor(
         "train_randomforest_regressor",
         source_table,
         target,
-        option,
-        hashing,
-        oversample_pos_n_times)
+        option=option,
+        hashing=hashing,
+        oversample_pos_n_times=oversample_pos_n_times,
+        sparse=sparse,
+        categorical_columns=categorical_columns,
+        numerical_columns=numerical_columns)
 
 
 def _build_prediction_query(

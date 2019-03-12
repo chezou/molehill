@@ -148,7 +148,7 @@ def _build_feature_array_dense(
         hashing: bool = False,
         feature_cardinality: Optional[Union[int, str]] = None):
 
-    target_columns = numerical_columns
+    target_columns = numerical_columns.copy()
 
     if hashing:
         _feature_size = f", {feature_cardinality}" if feature_cardinality else ''

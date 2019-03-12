@@ -2,4 +2,4 @@ from .linear_model import train_classifier, train_regressor
 from .linear_model import predict_classifier, predict_regressor
 from .tree_model import train_randomforest_classifier, train_randomforest_regressor
 from .tree_model import predict_randomforest_classifier, predict_randomforest_regressor
-from .tree_model import extract_attrs, TREE_MODEL_TRAINERS, TREE_MODEL_PREDICTORS
+from .tree_model import _extract_attrs, TREE_MODEL_TRAINERS, TREE_MODEL_PREDICTORS
