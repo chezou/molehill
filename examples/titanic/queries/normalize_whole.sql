@@ -1,18 +1,18 @@
 select
   rowid
   , survived
-  , zscore(
-      age,
-      ${td.last_results.age_mean},
-      ${td.last_results.age_std}
+  , rescale(
+    age
+    , ${td.last_results.age_min}
+    , ${td.last_results.age_max}
   ) as age
-  , zscore(
-      fare,
-      ${td.last_results.fare_mean},
-      ${td.last_results.fare_std}
+  , rescale(
+    fare
+    , ${td.last_results.fare_min}
+    , ${td.last_results.fare_max}
   ) as fare
-  , sex
   , embarked
+  , sex
   , pclass
 from
   ${source}

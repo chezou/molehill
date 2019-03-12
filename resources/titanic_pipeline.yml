@@ -39,6 +39,10 @@ vectorizer:
   train_table: "train"
   test_table: "test"
   # whole_table: "whole" # vectorize all data
+  dense:
+    mode: "auto" # auto or force. Default: auto
+    hashing: true # true or false. Default: true
+    feature_cardinality: "auto" # "auto" or integer, which represents maximum cardinality of categorical columns
 
 # Not implemented yet
 tuner:
@@ -50,7 +54,7 @@ trainer:
     # source_table: "train" # Set if you want to set specific table name
   - name: "train_randomforest_classifier"
     model_table: "model_rf"
-    hashing: true
+    option: "-trees 15 -seed 31"
 
 predictor:
   - name: "predict_classifier"
@@ -60,7 +64,6 @@ predictor:
   - name: "predict_randomforest_classifier"
     model_table: "model_rf"
     output_table: "prediction_rf"
-    hashing: true
 
 evaluator:
   metrics:
