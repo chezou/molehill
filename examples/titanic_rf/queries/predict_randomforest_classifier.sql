@@ -4,14 +4,14 @@ with ensembled as (
     rf_ensemble(predicted.value, predicted.posteriori, model_weight) as predicted
   from (
     select
-      t.rowid, 
+      t.rowid,
       p.model_weight,
-      tree_predict(p.model_id, p.model, feature_hashing(t.features) , "-classification") as predicted
+      tree_predict(p.model_id, p.model, feature_hashing(t.features), "-classification") as predicted
     from (
-      select 
+      select
         model_id, model_weight, model
-      from 
-        ${model_table} 
+      from
+        ${model_table}
       DISTRIBUTE BY rand(1)
     ) p
     left outer join ${target_table} t
@@ -20,7 +20,7 @@ with ensembled as (
     rowid
 )
 -- DIGDAG_INSERT_LINE
-select 
+select
   rowid,
   predicted.label,
   predicted.probabilities[1] as probability
