@@ -1,3 +1,4 @@
+-- molehill/0.0.1
 with features_exploded as (
   select
     rowid

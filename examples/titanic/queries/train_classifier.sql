@@ -1,3 +1,4 @@
+-- molehill/0.0.1
 with amplified as (
   select
     amplify(${oversample_n_times}, features, survived) as (features, survived)

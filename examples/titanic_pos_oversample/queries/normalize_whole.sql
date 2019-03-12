@@ -1,15 +1,16 @@
+-- molehill/0.0.1
 select
   rowid
   , survived
-  , zscore(
+  , rescale(
     age
-    , ${td.last_results.age_mean}
-    , ${td.last_results.age_std}
+    , ${td.last_results.age_min}
+    , ${td.last_results.age_max}
   ) as age
-  , zscore(
+  , rescale(
     fare
-    , ${td.last_results.fare_mean}
-    , ${td.last_results.fare_std}
+    , ${td.last_results.fare_min}
+    , ${td.last_results.fare_max}
   ) as fare
   , embarked
   , sex

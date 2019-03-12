@@ -116,18 +116,18 @@ _export:
     +train_0:
       td>: queries/train_classifier.sql
       source: train
-      create_table: model
+      create_table: model_lr
   +predict:
     +seq_0:
       +exec_predict:
         td>: queries/predict_classifier.sql
         target_table: test
-        create_table: prediction
-        model_table: model
+        create_table: prediction_lr
+        model_table: model_lr
       +evaluate:
         td>: queries/evaluate.sql
         actual: test
-        predicted_table: prediction
+        predicted_table: prediction_lr
         predicted_column: probability
         store_last_results: true
       +show_accuracy:
