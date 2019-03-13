@@ -4,7 +4,7 @@ from molehill.preprocessing import downsampling_rate
 
 def test_downsampling_rate():
     ret_sql = f"""\
--- molehill/{molehill.__version__}
+-- client: molehill/{molehill.__version__}
 with label_count as (
   select
     label

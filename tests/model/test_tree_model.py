@@ -24,7 +24,7 @@ def test_extract_attrs(categorical_cols, numerical_cols):
 class TestSparseTrainModel:
     def test_train_randomforest_classifier(self):
         ret_sql = f"""\
--- molehill/{molehill.__version__}
+-- client: molehill/{molehill.__version__}
 with models as (
   select
     train_randomforest_classifier(
@@ -54,7 +54,7 @@ group by 1, 2, 3, 5, 6
 
     def test_train_randomforest_regressor(self):
         ret_sql = f"""\
--- molehill/{molehill.__version__}
+-- client: molehill/{molehill.__version__}
 with models as (
   select
     train_randomforest_regressor(
@@ -85,7 +85,7 @@ group by 1, 2, 3, 5, 6
 class TestDenseTrainModel:
     def test_train_randomforest_classifier(self, categorical_cols, numerical_cols):
         ret_sql = f"""\
--- molehill/{molehill.__version__}
+-- client: molehill/{molehill.__version__}
 select
   train_randomforest_classifier(
     features
@@ -103,7 +103,7 @@ from
 
     def test_train_randomforest_regressor(self, categorical_cols, numerical_cols):
         ret_sql = f"""\
--- molehill/{molehill.__version__}
+-- client: molehill/{molehill.__version__}
 select
   train_randomforest_regressor(
     features
@@ -123,7 +123,7 @@ from
 class TestPredictClassifier:
     def test_predict_randomforest_classifier(self):
         ret_sql = f"""\
--- molehill/{molehill.__version__}
+-- client: molehill/{molehill.__version__}
 with p as (
   select
     model_id
@@ -167,7 +167,7 @@ from
 
     def test_predict_randomforest_classifier_hashing(self):
         ret_sql = f"""\
--- molehill/{molehill.__version__}
+-- client: molehill/{molehill.__version__}
 with p as (
   select
     model_id
@@ -212,7 +212,7 @@ from
 class TestPredictRegressor:
     def test_predict_randomforest_regressor(self):
         ret_sql = f"""\
--- molehill/{molehill.__version__}
+-- client: molehill/{molehill.__version__}
 with p as (
   select
     model_id
@@ -255,7 +255,7 @@ from
 
     def test_predict_regressor_hashing(self):
         ret_sql = f"""\
--- molehill/{molehill.__version__}
+-- client: molehill/{molehill.__version__}
 with p as (
   select
     model_id

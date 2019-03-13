@@ -1,4 +1,4 @@
--- molehill/0.0.1
+-- client: molehill/0.0.1
 select
   rowid
   , array_concat(

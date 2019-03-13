@@ -50,7 +50,7 @@ def build_query(select_clauses: List[str],
 
     # Add header
     if not without_semicolon:
-        query += f"-- molehill/{molehill.__version__}\n"
+        query += f"-- client: molehill/{molehill.__version__}\n"
 
     if not with_clauses:
         with_clauses = OrderedDict()

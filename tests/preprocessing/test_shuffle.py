@@ -4,7 +4,7 @@ from molehill.preprocessing import shuffle, train_test_split
 
 def test_shuffle():
     ret_sql = f"""\
--- molehill/{molehill.__version__}
+-- client: molehill/{molehill.__version__}
 select
   rowid() as id
   , target
@@ -22,7 +22,7 @@ cluster by rand(43)
 
 def test_stratified_shuffle():
     ret_sql = f"""\
--- molehill/{molehill.__version__}
+-- client: molehill/{molehill.__version__}
 select
   rowid() as id
   , target
@@ -40,7 +40,7 @@ from
 
 def test_train_test_split():
     train_sql = f"""\
--- molehill/{molehill.__version__}
+-- client: molehill/{molehill.__version__}
 select
   *
 from
@@ -51,7 +51,7 @@ where
 """
 
     test_sql = f"""\
--- molehill/{molehill.__version__}
+-- client: molehill/{molehill.__version__}
 select
   *
 from
@@ -67,7 +67,7 @@ where
 
 def test_train_test_split_stratify():
     train_sql = f"""\
--- molehill/{molehill.__version__}
+-- client: molehill/{molehill.__version__}
 select
   *
 from
@@ -78,7 +78,7 @@ where
 """
 
     test_sql = f"""\
--- molehill/{molehill.__version__}
+-- client: molehill/{molehill.__version__}
 select
   *
 from

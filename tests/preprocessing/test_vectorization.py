@@ -15,7 +15,7 @@ def cat_cols():
 
 def test_vectorize(num_cols, cat_cols):
     ret_sql = f"""\
--- molehill/{molehill.__version__}
+-- client: molehill/{molehill.__version__}
 select
   id
   , array_concat(
@@ -47,7 +47,7 @@ def test_vectorize_without_cols():
 
 def test_vectorize_with_num_cols(num_cols):
     ret_sql = f"""\
--- molehill/{molehill.__version__}
+-- client: molehill/{molehill.__version__}
 select
   rowid
   , quantitative_features(
@@ -66,7 +66,7 @@ from
 
 def test_vectorize_with_cat_cols(cat_cols):
     ret_sql = f"""\
--- molehill/{molehill.__version__}
+-- client: molehill/{molehill.__version__}
 select
   rowid
   , categorical_features(
@@ -85,7 +85,7 @@ from
 
 def test_vectorize_with_bias(cat_cols, num_cols):
     ret_sql = f"""\
--- molehill/{molehill.__version__}
+-- client: molehill/{molehill.__version__}
 select
   rowid
   , add_bias(
@@ -114,7 +114,7 @@ from
 
 def test_vectorize_with_hashing(cat_cols, num_cols):
     ret_sql = f"""\
--- molehill/{molehill.__version__}
+-- client: molehill/{molehill.__version__}
 select
   rowid
   , feature_hashing(
@@ -143,7 +143,7 @@ from
 
 def test_vectorize_with_hashing_cardinality(cat_cols, num_cols):
     ret_sql = f"""\
--- molehill/{molehill.__version__}
+-- client: molehill/{molehill.__version__}
 select
   rowid
   , feature_hashing(
@@ -173,7 +173,7 @@ from
 
 def test_vectorize_with_bias_hashing(cat_cols, num_cols):
     ret_sql = f"""\
--- molehill/{molehill.__version__}
+-- client: molehill/{molehill.__version__}
 select
   rowid
   , add_bias(
@@ -204,7 +204,7 @@ from
 
 def test_vectorize_with_emit_null(cat_cols, num_cols):
     ret_sql = f"""\
--- molehill/{molehill.__version__}
+-- client: molehill/{molehill.__version__}
 select
   rowid
   , array_concat(
@@ -233,7 +233,7 @@ from
 
 def test_vectorize_with_force_value(cat_cols, num_cols):
     ret_sql = f"""\
--- molehill/{molehill.__version__}
+-- client: molehill/{molehill.__version__}
 select
   rowid
   , array_concat(
@@ -261,7 +261,7 @@ from
 
 def test_vectorize_with_emit_null_force_value(cat_cols, num_cols):
     ret_sql = f"""\
--- molehill/{molehill.__version__}
+-- client: molehill/{molehill.__version__}
 select
   rowid
   , array_concat(
@@ -290,7 +290,7 @@ from
 
 def test_vectorize_dense(cat_cols, num_cols):
     ret_sql = f"""\
--- molehill/{molehill.__version__}
+-- client: molehill/{molehill.__version__}
 select
   rowid
   , array(num1, num2, cat1, cat2, cat3) as features
@@ -305,7 +305,7 @@ from
 
 def test_vectorize_dense_with_hashing(cat_cols, num_cols):
     ret_sql = f"""\
--- molehill/{molehill.__version__}
+-- client: molehill/{molehill.__version__}
 select
   rowid
   , array(num1, num2, mhash(cat1), mhash(cat2), mhash(cat3)) as features
@@ -320,7 +320,7 @@ from
 
 def test_vectorize_dense_with_hashing_cardinality(cat_cols, num_cols):
     ret_sql = f"""\
--- molehill/{molehill.__version__}
+-- client: molehill/{molehill.__version__}
 select
   rowid
   , array(num1, num2, mhash(cat1, 100), mhash(cat2, 100), mhash(cat3, 100)) as features

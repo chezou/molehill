@@ -1,4 +1,4 @@
--- molehill/0.0.1
+-- client: molehill/0.0.1
 with label_count as (
   select
     ${target_column}
