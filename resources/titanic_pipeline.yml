@@ -39,6 +39,7 @@ vectorizer:
   train_table: "train"
   test_table: "test"
   # whole_table: "whole" # vectorize all data
+  # Options for creating dense vector which is required by train_randomforest*
   dense:
     mode: "auto" # auto or force. Default: auto
     hashing: true # true or false. Default: true

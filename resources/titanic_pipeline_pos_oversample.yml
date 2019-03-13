@@ -20,7 +20,7 @@ numerical_columns:
         strategy: "median" # median, mean, constant
         phase: "train" # train, test, or null (whole dataset to get stats)
       normalizer:
-        strategy: "minmax"  # standardize, log1p, minmax
+        strategy: "standardize"  # standardize, log1p, minmax
         phase: "train"
 
 categorical_columns:

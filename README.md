@@ -28,7 +28,7 @@ Example YAML files can be found as follows:
 The following YAMLs are example config files for [Titanic](https://github.com/amueller/scipy-2017-sklearn/blob/master/notebooks/datasets/titanic3.csv) survival prediction with Logistic Regression.
   
 - [titanic_pipeline.yml](./resources/titanic_pipeline.yml)
-  - Example workflow for Linear Regression
+  - Example workflow for Linear Regression and Random Forest
   - Generated files are under [examples/titanic](./examples/titanic)
 - [titanic_pipeline_rf.yml](resources/titanic_pipeline_rf.yml)
   - Example workflow for Random Forest
