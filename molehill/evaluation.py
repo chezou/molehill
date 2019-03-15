@@ -3,22 +3,46 @@ from typing import Union, List
 from .utils import build_query
 
 
+# metrics Hivemall supports
 KNOWN_METRICS = {"logloss", "auc", "mse", "rmse", "mse", "mae", "r2", "fmeasure",
                  "average_precision", "hitrate", "ndcg", "precision_at", "recall_at"}
+# metrics molehill extended
+EXTENDED_METRICS = {"accuracy", "precision", "recall", "fmeasure_binary"}
+PROBABILITY_REQUIRE_METRICS = {"logloss", "auc"}
 
 
 def _build_evaluate_clause(
         metrics: List[str], scoring_template: str, inv_template: str, predicted_column: str, target_column: str):
 
-    return [
-        inv_template.format_map({
-            "scoring": _metric, "predicted_column": predicted_column, "target_column": target_column
-        }) if _metric == "fmeasure"
-        else scoring_template.format_map({
-            "scoring": _metric, "predicted_column": predicted_column, "target_column": target_column
-        })
-        for _metric in metrics
-    ]
+    true_positive = f"sum(if({predicted_column} = {target_column} and {target_column} = 1, 1 , 0))"
+    _results = []
+    for _metric in metrics:
+        if _metric == "fmeasure":
+            _results.append(inv_template.format_map({
+                "scoring": _metric, "predicted_column": predicted_column, "target_column": target_column, "option": ''
+            }))
+        elif _metric == "fmeasure_binary":
+            _results.append(inv_template.format_map({
+                "scoring": _metric, "predicted_column": predicted_column,
+                "target_column": target_column, "option": ", '-average binary'"
+            }))
+        elif _metric == "auc":
+            _results.append(scoring_template.format_map({
+                "scoring": _metric, "predicted_column": "probability", "target_column": target_column
+            }))
+        elif _metric == "accuracy":
+            _results.append(f"cast({true_positive} as double)/count(1) as accuracy")
+        # precision and recall are only for binary class
+        elif _metric == "precision":
+            _results.append(f"cast({true_positive} as double)/sum(if({predicted_column} = 1, 1, 0)) as precision")
+        elif _metric == "recall":
+            _results.append(f"cast({true_positive} as double)/sum(if({target_column} = 1, 1, 0)) as precision")
+        else:
+            _results.append(scoring_template.format_map({
+                "scoring": _metric, "predicted_column": predicted_column, "target_column": target_column
+            }))
+
+    return _results
 
 
 def evaluate(
@@ -54,7 +78,7 @@ def evaluate(
     _metrics = [metrics] if isinstance(metrics, str) else metrics
     _metrics = [metric.lower() for metric in metrics]
 
-    if len(set(_metrics) - KNOWN_METRICS) > 0:
+    if len(set(_metrics) - KNOWN_METRICS - EXTENDED_METRICS) > 0:
         unknown_metrics = [s for s in metrics if s not in KNOWN_METRICS]
 
         raise ValueError("Unknown metric: {}".format(", ".join(unknown_metrics)))
@@ -63,14 +87,11 @@ def evaluate(
 
     if has_auc:
         scoring_template = "{scoring}({predicted_column}, {target_column}) as {scoring}"
-        select_template = "p.{predicted_column}, t.{target_column}"
-        inv_template = "{scoring}({target_column}, {predicted_column}) as {scoring}"
+        inv_template = "{scoring}({target_column}, {predicted_column}{option}) as {scoring}"
 
         evaluations = _build_evaluate_clause(_metrics, scoring_template, inv_template, predicted_column, target_column)
 
-        select_clause = select_template.format_map({
-                        "predicted_column": predicted_column,
-                        "target_column": target_column})
+        select_clause = f"p.{predicted_column}, t.{target_column}"
 
         cond = textwrap.dedent("""\
         join
@@ -97,8 +118,8 @@ def evaluate(
         # TODO: Handle option for scoring
         evaluations = _build_evaluate_clause(_metrics, scoring_template, inv_template, predicted_column, target_column)
 
-        cond = """\
+        cond = textwrap.dedent(f"""\
         join
-          {test} t on (p.{id} = t.{id})""".format_map({"test": target_table, "id": id_column})
+          {target_table} t on (p.{id_column} = t.{id_column})""")
 
-        return build_query(evaluations, f"{prediction_table} p", textwrap.dedent(cond))
+        return build_query(evaluations, f"{prediction_table} p", cond)
