@@ -14,7 +14,7 @@ PROBABILITY_REQUIRE_METRICS = {"logloss", "auc"}
 def _build_evaluate_clause(
         metrics: List[str], scoring_template: str, inv_template: str, predicted_column: str, target_column: str):
 
-    true_positive = f"sum(if({predicted_column} = {target_column} and {target_column} = 1, 1 , 0))"
+    true_positive = f"sum(if(p.{predicted_column} = t.{target_column} and t.{target_column} = 1, 1, 0))"
     _results = []
     for _metric in metrics:
         if _metric == "fmeasure":
@@ -26,7 +26,7 @@ def _build_evaluate_clause(
                 "scoring": _metric, "predicted_column": predicted_column,
                 "target_column": target_column, "option": ", '-average binary'"
             }))
-        elif _metric == "auc":
+        elif _metric in PROBABILITY_REQUIRE_METRICS:
             _results.append(scoring_template.format_map({
                 "scoring": _metric, "predicted_column": "probability", "target_column": target_column
             }))
@@ -34,9 +34,9 @@ def _build_evaluate_clause(
             _results.append(f"cast({true_positive} as double)/count(1) as accuracy")
         # precision and recall are only for binary class
         elif _metric == "precision":
-            _results.append(f"cast({true_positive} as double)/sum(if({predicted_column} = 1, 1, 0)) as precision")
+            _results.append(f"cast({true_positive} as double)/sum(if(p.{predicted_column} = 1, 1, 0)) as \"precision\"")
         elif _metric == "recall":
-            _results.append(f"cast({true_positive} as double)/sum(if({target_column} = 1, 1, 0)) as precision")
+            _results.append(f"cast({true_positive} as double)/sum(if(t.{target_column} = 1, 1, 0)) as recall")
         else:
             _results.append(scoring_template.format_map({
                 "scoring": _metric, "predicted_column": predicted_column, "target_column": target_column
