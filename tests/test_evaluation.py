@@ -59,7 +59,7 @@ join
 def test_evaluate_with_accuracy_precision_recall():
     metrics = ['accuracy', 'precision', 'recall']
     ret_sql = f"""\
--- molehill/{molehill.__version__}
+-- client: molehill/{molehill.__version__}
 select
   cast(sum(if(p.predicted = t.target and t.target = 1, 1, 0)) as double)/count(1) as accuracy
   , cast(sum(if(p.predicted = t.target and t.target = 1, 1, 0)) as double)/sum(if(p.predicted = 1, 1, 0)) as "precision"
